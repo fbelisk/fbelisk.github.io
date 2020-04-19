@@ -26,13 +26,13 @@
 <meta property="og:url" content="http://yoursite.com/2020/04/16/nsq%E4%BC%98%E5%85%88%E9%98%9F%E5%88%97/index.html">
 <meta property="og:site_name" content="老冯的博客">
 <meta property="og:description" content="一、优先队列（priority queue）基本概念在对inFlightPqueue进行分析之前，先简单介绍一下优先队列的概念。我们都知道，队列是一种先进先出（FIFO）的数据结构。而优先队列不再遵循先入先出的原则，而是分为两种情况：1、最大优先队列，无论入队顺序，当前最大的元素优先出队。2、最小优先队列，无论入队顺序，当前最小的元素优先出队。 二、优先队列的实现 优先队列的实现常选用二叉堆，在数">
-<meta property="og:image" content="http://yoursite.com/2020/04/16/images/Min-heap.png">
-<meta property="og:image" content="http://yoursite.com/2020/04/16/images/priority-queue.png">
+<meta property="og:image" content="http://yoursite.com/images/Min-heap.png">
+<meta property="og:image" content="http://yoursite.com/images/priority-queue.png">
 <meta property="article:published_time" content="2020-04-16T08:31:42.192Z">
-<meta property="article:modified_time" content="2020-04-18T16:00:15.996Z">
+<meta property="article:modified_time" content="2020-04-19T04:13:44.367Z">
 <meta property="article:author" content="老冯">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="http://yoursite.com/2020/04/16/images/Min-heap.png">
+<meta name="twitter:image" content="http://yoursite.com/images/Min-heap.png">
 
 <link rel="canonical" href="http://yoursite.com/2020/04/16/nsq%E4%BC%98%E5%85%88%E9%98%9F%E5%88%97/">
 
@@ -195,13 +195,13 @@
 <h3 id="二、优先队列的实现"><a href="#二、优先队列的实现" class="headerlink" title="二、优先队列的实现"></a>二、优先队列的实现</h3><ul>
 <li>优先队列的实现常选用二叉堆，在数据结构中，优先队列一般也是指堆。</li>
 </ul>
-<p><img src="../images/Min-heap.png" alt=""></p>
+<p><img src="/images/Min-heap.png" alt=""></p>
 <center>二叉堆</center>
 
 <ul>
 <li>我们通常使用数组存储二叉堆，那么二叉堆在数组中又是怎么存储的呢？</li>
 </ul>
-<p><img src="../images/priority-queue.png" alt=""></p>
+<p><img src="/images/priority-queue.png" alt=""></p>
 <center>用数组存储二叉堆</center>
 对于数组中的任意位置 i 的元素，其左儿子在位置 2i 上，则右儿子在  2i+1 上，父节点在 在 i/2（向下取整）上。通常从数组下标1开始存储，这样的好处在于很方便找到左右、及父节点。如果从0开始，左儿子在2i+1,右儿子在2i+2,父节点在(i-1)/2（向下取整）。
 

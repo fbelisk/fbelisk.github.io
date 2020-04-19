@@ -188,13 +188,13 @@
 <h3 id="二、优先队列的实现"><a href="#二、优先队列的实现" class="headerlink" title="二、优先队列的实现"></a>二、优先队列的实现</h3><ul>
 <li>优先队列的实现常选用二叉堆，在数据结构中，优先队列一般也是指堆。</li>
 </ul>
-<p><img src="../images/Min-heap.png" alt=""></p>
+<p><img src="/images/Min-heap.png" alt=""></p>
 <center>二叉堆</center>
 
 <ul>
 <li>我们通常使用数组存储二叉堆，那么二叉堆在数组中又是怎么存储的呢？</li>
 </ul>
-<p><img src="../images/priority-queue.png" alt=""></p>
+<p><img src="/images/priority-queue.png" alt=""></p>
 <center>用数组存储二叉堆</center>
 对于数组中的任意位置 i 的元素，其左儿子在位置 2i 上，则右儿子在  2i+1 上，父节点在 在 i/2（向下取整）上。通常从数组下标1开始存储，这样的好处在于很方便找到左右、及父节点。如果从0开始，左儿子在2i+1,右儿子在2i+2,父节点在(i-1)/2（向下取整）。
 
