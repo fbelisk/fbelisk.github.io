@@ -20,27 +20,31 @@
     var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
   </script>
 
-  <meta property="og:type" content="website">
-<meta property="og:title" content="老冯的博客">
-<meta property="og:url" content="http://yoursite.com/index.html">
+  <meta name="description" content="一、基本概念访问者模式属于设计模式中的【行为模式】，他将行为和具体的数据结构进行了分离。 二、实现我们先不探究使用行为模式的原因，简单来看看访问者模式的组成和实现。其实访问者模式就像它的名字所说，可以比喻为几个客人对一个家庭的访问。它的三个组成要素就是：客人、家庭、以及家庭成员。 以下是行为模式Golang的一个实现 1234567891011121314151617181920212223242">
+<meta property="og:type" content="article">
+<meta property="og:title" content="访问者模式">
+<meta property="og:url" content="http://yoursite.com/2020/04/21/visitor/index.html">
 <meta property="og:site_name" content="老冯的博客">
+<meta property="og:description" content="一、基本概念访问者模式属于设计模式中的【行为模式】，他将行为和具体的数据结构进行了分离。 二、实现我们先不探究使用行为模式的原因，简单来看看访问者模式的组成和实现。其实访问者模式就像它的名字所说，可以比喻为几个客人对一个家庭的访问。它的三个组成要素就是：客人、家庭、以及家庭成员。 以下是行为模式Golang的一个实现 1234567891011121314151617181920212223242">
+<meta property="article:published_time" content="2020-04-20T16:26:26.701Z">
+<meta property="article:modified_time" content="2020-04-20T16:32:00.775Z">
 <meta property="article:author" content="老冯">
 <meta name="twitter:card" content="summary">
 
-<link rel="canonical" href="http://yoursite.com/">
+<link rel="canonical" href="http://yoursite.com/2020/04/21/visitor/">
 
 
 <script id="page-configurations">
   // https://hexo.io/docs/variables.html
   CONFIG.page = {
     sidebar: "",
-    isHome : true,
-    isPost : false,
+    isHome : false,
+    isPost : true,
     lang   : 'zh-Hans'
   };
 </script>
 
-  <title>老冯的博客</title>
+  <title>访问者模式 | 老冯的博客</title>
   
 
 
@@ -139,9 +143,10 @@
         <div class="content-wrap">
           
 
-          <div class="content index posts-expand">
+          <div class="content post posts-expand">
             
-      
+
+    
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
@@ -157,10 +162,9 @@
       <meta itemprop="name" content="老冯的博客">
     </span>
       <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2020/04/21/visitor/" class="post-title-link" itemprop="url">访问者模式</a>
-        </h2>
+        <h1 class="post-title" itemprop="name headline">
+          访问者模式
+        </h1>
 
         <div class="post-meta">
             <span class="post-meta-item">
@@ -184,7 +188,7 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <h4 id="一、基本概念"><a href="#一、基本概念" class="headerlink" title="一、基本概念"></a>一、基本概念</h4><p>访问者模式属于设计模式中的【行为模式】，他将行为和具体的数据结构进行了分离。</p>
+        <h4 id="一、基本概念"><a href="#一、基本概念" class="headerlink" title="一、基本概念"></a>一、基本概念</h4><p>访问者模式属于设计模式中的【行为模式】，他将行为和具体的数据结构进行了分离。</p>
 <h4 id="二、实现"><a href="#二、实现" class="headerlink" title="二、实现"></a>二、实现</h4><p>我们先不探究使用行为模式的原因，简单来看看访问者模式的组成和实现。其实访问者模式就像它的名字所说，可以比喻为几个客人对一个家庭的访问。它的三个组成要素就是：<strong>客人</strong>、<strong>家庭</strong>、以及<strong>家庭成员</strong>。<br></p>
 <p>以下是行为模式Golang的一个实现</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br></pre></td><td class="code"><pre><span class="line">package main</span><br><span class="line"></span><br><span class="line">import &quot;fmt&quot;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;家庭成员接口</span><br><span class="line">type Member interface &#123;</span><br><span class="line">    &#x2F;&#x2F;定义一个与访问者发生寒暄的方法</span><br><span class="line">	Accept(Visitor)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;家里的小女儿</span><br><span class="line">type daughter struct&#123;&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;与访问者互相寒暄</span><br><span class="line">func (d *daughter) Accept(v Visitor) &#123;</span><br><span class="line">	v.Visit(d)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;家里的小儿子</span><br><span class="line">type son struct&#123;&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;与访问者互相寒暄</span><br><span class="line">func (s *son) Accept(v Visitor) &#123;</span><br><span class="line">	v.Visit(s)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;访问者接口</span><br><span class="line">type Visitor interface &#123;</span><br><span class="line">    &#x2F;&#x2F;和家庭成员寒暄时要进行的对应操作定义在这里</span><br><span class="line">	Visit(Member)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;爸爸的同学1</span><br><span class="line">type Classmate1 struct&#123;&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;这是一个玩具厂老板，给孩子送玩具</span><br><span class="line">func (c *Classmate1) Visit(member Member) &#123;</span><br><span class="line">	switch member.(type) &#123;</span><br><span class="line">	case *son:</span><br><span class="line">		fmt.Println(&quot;送给一个擎天柱&quot;)</span><br><span class="line">	case *daughter:</span><br><span class="line">		fmt.Println(&quot;送给一个洋娃娃&quot;)</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;爸爸的同学2</span><br><span class="line">type Classmate2 struct&#123;&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;这是一个程序员，给孩子送编程书</span><br><span class="line">func (c *Classmate2) Visit(member Member) &#123;</span><br><span class="line">	switch member.(type) &#123;</span><br><span class="line">	case *daughter:</span><br><span class="line">		fmt.Println(&quot;送一本Java大全&quot;)</span><br><span class="line">	case *son:</span><br><span class="line">		fmt.Println(&quot;送一本前端宝典&quot;)</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;家庭类</span><br><span class="line">type Family struct &#123;</span><br><span class="line">	members []Member</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;添加家庭成员</span><br><span class="line">func (f *Family) Add(m Member) &#123;</span><br><span class="line">	f.members &#x3D; append(f.members, m)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;聚会开始</span><br><span class="line">func (f *Family) Party(v Visitor) &#123;</span><br><span class="line">	for _, m :&#x3D; range f.members &#123;</span><br><span class="line">		m.Accept(v)</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">func main() &#123;</span><br><span class="line">    &#x2F;&#x2F;首先定义家庭成员</span><br><span class="line">    family :&#x3D; Family&#123;&#125;</span><br><span class="line">	family.Add(&amp;son&#123;&#125;)</span><br><span class="line">	family.Add(&amp;daughter&#123;&#125;)</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;根据不同的访问者，和家庭成员之间产生不同的行为</span><br><span class="line">    &#x2F;&#x2F;玩具老板给两个孩子送玩具</span><br><span class="line">	v1 :&#x3D; &amp;Classmate1&#123;&#125;</span><br><span class="line">	family.Party(v1)</span><br><span class="line">    &#x2F;&#x2F;程序员给孩子送编程书籍</span><br><span class="line">	v2 :&#x3D; &amp;Classmate2&#123;&#125;</span><br><span class="line">	family.Party(v2)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
@@ -197,97 +201,30 @@
 </ul>
 <p>而访问模式通过将行为定义到visitor中，并通过family为媒介，实现member成员类与行为的解耦，行为的增加只需要定义一个新的访问者即可。</p>
 
-      
     </div>
 
     
     
     
+
       <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/04/16/nsq%E4%BC%98%E5%85%88%E9%98%9F%E5%88%97/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="老冯">
-      <meta itemprop="description" content="">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="老冯的博客">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2020/04/16/nsq%E4%BC%98%E5%85%88%E9%98%9F%E5%88%97/" class="post-title-link" itemprop="url">nsq优先队列——inFlightPqueue源码分析</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">分类于</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/nsq/" itemprop="url" rel="index"><span itemprop="name">nsq</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h3 id="一、优先队列（priority-queue）基本概念"><a href="#一、优先队列（priority-queue）基本概念" class="headerlink" title="一、优先队列（priority queue）基本概念"></a>一、优先队列（priority queue）基本概念</h3><p>在对inFlightPqueue进行分析之前，先简单介绍一下优先队列的概念。<br>我们都知道，队列是一种先进先出（FIFO）的数据结构。而优先队列不再遵循先入先出的原则，而是分为两种情况：<br>1、最大优先队列，无论入队顺序，当前最大的元素优先出队。<br>2、最小优先队列，无论入队顺序，当前最小的元素优先出队。</p>
-<h3 id="二、优先队列的实现"><a href="#二、优先队列的实现" class="headerlink" title="二、优先队列的实现"></a>二、优先队列的实现</h3><ul>
-<li>优先队列的实现常选用二叉堆，在数据结构中，优先队列一般也是指堆。</li>
-</ul>
-<p><img src="/images/Min-heap.png" alt=""></p>
-<center>二叉堆</center>
-
-<ul>
-<li>我们通常使用数组存储二叉堆，那么二叉堆在数组中又是怎么存储的呢？</li>
-</ul>
-<p><img src="/images/priority-queue.png" alt=""></p>
-<center>用数组存储二叉堆</center>
-对于数组中的任意位置 i 的元素，其左儿子在位置 2i 上，则右儿子在  2i+1 上，父节点在 在 i/2（向下取整）上。通常从数组下标1开始存储，这样的好处在于很方便找到左右、及父节点。如果从0开始，左儿子在2i+1,右儿子在2i+2,父节点在(i-1)/2（向下取整）。
+        
 
 
-
-<h3 id="三、nsq优先队列——inFlightPqueue的实现"><a href="#三、nsq优先队列——inFlightPqueue的实现" class="headerlink" title="三、nsq优先队列——inFlightPqueue的实现"></a>三、nsq优先队列——inFlightPqueue的实现</h3><p>在nsq中也实现了优先队列的结构，即inFlightPqueue。inFlightPqueue是一个最小堆，主要使用Golang中的slice来实现。废话不多说，上代码。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br></pre></td><td class="code"><pre><span class="line">package nsqd</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;优先队列、小顶堆</span><br><span class="line">type inFlightPqueue []*Message</span><br><span class="line"></span><br><span class="line">func newInFlightPqueue(capacity int) inFlightPqueue &#123;</span><br><span class="line">	return make(inFlightPqueue, 0, capacity)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;元素交换</span><br><span class="line">func (pq inFlightPqueue) Swap(i, j int) &#123;</span><br><span class="line">	pq[i], pq[j] &#x3D; pq[j], pq[i]</span><br><span class="line">	pq[i].index &#x3D; i</span><br><span class="line">	pq[j].index &#x3D; j</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;向最小堆插入新值</span><br><span class="line">func (pq *inFlightPqueue) Push(x *Message) &#123;</span><br><span class="line">	n :&#x3D; len(*pq)</span><br><span class="line">	c :&#x3D; cap(*pq)</span><br><span class="line"></span><br><span class="line">	&#x2F;&#x2F;如果队列长度达到slice cap，进行扩容</span><br><span class="line">	if n+1 &gt; c &#123;</span><br><span class="line">		&#x2F;&#x2F;cap * 2</span><br><span class="line">		npq :&#x3D; make(inFlightPqueue, n, c*2)</span><br><span class="line">		copy(npq, *pq)</span><br><span class="line">		*pq &#x3D; npq</span><br><span class="line">	&#125;</span><br><span class="line">	&#x2F;&#x2F;队列length + 1</span><br><span class="line">	*pq &#x3D; (*pq)[0 : n+1]</span><br><span class="line"></span><br><span class="line">	&#x2F;&#x2F;追加到堆尾</span><br><span class="line">	x.index &#x3D; n</span><br><span class="line">	(*pq)[n] &#x3D; x</span><br><span class="line"></span><br><span class="line">	&#x2F;&#x2F;上浮</span><br><span class="line">	pq.up(n)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;推出堆顶元素，即最小元素</span><br><span class="line">func (pq *inFlightPqueue) Pop() *Message &#123;</span><br><span class="line">	n :&#x3D; len(*pq)</span><br><span class="line">	c :&#x3D; cap(*pq)</span><br><span class="line">	&#x2F;&#x2F;把堆顶元素和堆尾元素互换</span><br><span class="line">	pq.Swap(0, n-1)</span><br><span class="line">	&#x2F;&#x2F;新的堆顶元素下沉重构小顶堆</span><br><span class="line">	pq.down(0, n-1)</span><br><span class="line">	&#x2F;&#x2F;如果新的队列长度小于容量的一半，进行缩容（容量小于25的队列不缩容）</span><br><span class="line">	if n &lt; (c&#x2F;2) &amp;&amp; c &gt; 25 &#123;</span><br><span class="line">		npq :&#x3D; make(inFlightPqueue, n, c&#x2F;2)</span><br><span class="line">		copy(npq, *pq)</span><br><span class="line">		*pq &#x3D; npq</span><br><span class="line">	&#125;</span><br><span class="line">	&#x2F;&#x2F;被置换到堆尾元素的最小元素作为返回值</span><br><span class="line">	x :&#x3D; (*pq)[n-1]</span><br><span class="line">	x.index &#x3D; -1</span><br><span class="line">	&#x2F;&#x2F;队列长度-1</span><br><span class="line">	*pq &#x3D; (*pq)[0 : n-1]</span><br><span class="line">	return x</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F; 移除指定元素</span><br><span class="line">&#x2F;&#x2F; 思路：把元素和堆尾元素交换，再重构除堆尾元素外的小顶堆</span><br><span class="line">func (pq *inFlightPqueue) Remove(i int) *Message &#123;</span><br><span class="line">	n :&#x3D; len(*pq)</span><br><span class="line">	if n-1 !&#x3D; i &#123;</span><br><span class="line">		pq.Swap(i, n-1)</span><br><span class="line">		pq.down(i, n-1)</span><br><span class="line">		pq.up(i)</span><br><span class="line">	&#125;</span><br><span class="line">	x :&#x3D; (*pq)[n-1]</span><br><span class="line">	x.index &#x3D; -1</span><br><span class="line">	*pq &#x3D; (*pq)[0 : n-1]</span><br><span class="line">	return x</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;将入参和堆最小元素比较，小于则返回两者差值，大于则进行pop操作</span><br><span class="line">func (pq *inFlightPqueue) PeekAndShift(max int64) (*Message, int64) &#123;</span><br><span class="line">	if len(*pq) &#x3D;&#x3D; 0 &#123;</span><br><span class="line">		return nil, 0</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	x :&#x3D; (*pq)[0]</span><br><span class="line">	if x.pri &gt; max &#123;</span><br><span class="line">		return nil, x.pri - max</span><br><span class="line">	&#125;</span><br><span class="line">	pq.Pop()</span><br><span class="line"></span><br><span class="line">	return x, 0</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;节点上浮</span><br><span class="line">func (pq *inFlightPqueue) up(j int) &#123;</span><br><span class="line">	for &#123;</span><br><span class="line">		&#x2F;&#x2F;获取父节点索引</span><br><span class="line">		i :&#x3D; (j - 1) &#x2F; 2 &#x2F;&#x2F; parent</span><br><span class="line">		&#x2F;&#x2F;节点关键字大小比较，子更小，则上浮，否则结束循环</span><br><span class="line">		if i &#x3D;&#x3D; j || (*pq)[j].pri &gt;&#x3D; (*pq)[i].pri &#123;</span><br><span class="line">			break</span><br><span class="line">		&#125;</span><br><span class="line">		pq.Swap(i, j)</span><br><span class="line">		j &#x3D; i</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;节点下沉</span><br><span class="line">func (pq *inFlightPqueue) down(i, n int) &#123;</span><br><span class="line">	for &#123;</span><br><span class="line">		&#x2F;&#x2F;左子节点索引</span><br><span class="line">		j1 :&#x3D; 2*i + 1</span><br><span class="line">		if j1 &gt;&#x3D; n || j1 &lt; 0 &#123; &#x2F;&#x2F; j1 &lt; 0 after int overflow</span><br><span class="line">			break</span><br><span class="line">		&#125;</span><br><span class="line">		j :&#x3D; j1 &#x2F;&#x2F; left child</span><br><span class="line"></span><br><span class="line">		&#x2F;&#x2F;左子节点和右子节点关键字值做比较，选出最小子节点</span><br><span class="line">		if j2 :&#x3D; j1 + 1; j2 &lt; n &amp;&amp; (*pq)[j1].pri &gt;&#x3D; (*pq)[j2].pri &#123;</span><br><span class="line">			j &#x3D; j2 &#x2F;&#x2F; &#x3D; 2*i + 2  &#x2F;&#x2F; right child</span><br><span class="line">		&#125;</span><br><span class="line">		&#x2F;&#x2F;节点和最小子节点比较，子节点更小则进行位置交换，否则结束循环</span><br><span class="line">		if (*pq)[j].pri &gt;&#x3D; (*pq)[i].pri &#123;</span><br><span class="line">			break</span><br><span class="line">		&#125;</span><br><span class="line">		pq.Swap(i, j)</span><br><span class="line">		i &#x3D; j</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-      
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2020/04/16/nsq%E4%BC%98%E5%85%88%E9%98%9F%E5%88%97/" rel="prev" title="nsq优先队列——inFlightPqueue源码分析">
+      <i class="fa fa-chevron-left"></i> nsq优先队列——inFlightPqueue源码分析
+    </a></div>
+      <div class="post-nav-item"></div>
     </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
       </footer>
+    
   </article>
   
   
-  
-
-
   
 
 
@@ -340,6 +277,7 @@
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-4"><a class="nav-link" href="#一、基本概念"><span class="nav-number">1.</span> <span class="nav-text">一、基本概念</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#二、实现"><span class="nav-number">2.</span> <span class="nav-text">二、实现</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#三、为什么需要访问者模式"><span class="nav-number">3.</span> <span class="nav-text">三、为什么需要访问者模式</span></a></li></ol></div>
       </div>
       <!--/noindex-->
 
