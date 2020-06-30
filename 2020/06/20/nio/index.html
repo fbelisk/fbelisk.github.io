@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"always","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="序NIO（Non-blocking I&#x2F;O），是一种同步非阻塞的I&#x2F;O模型，也是I&#x2F;O多路复用的基础，是现今主流的大流量、高并发IO有效解决方案。 五种IO模型在UNIX下，IO模式分为五类，分别是：阻塞式IO（bloking IO）、非阻塞式IO（non-blocking IO）、多路复用IO模型（multiplexing IO）、信号驱动IO模型（signal-driven IO）以及异步IO">
+<meta property="og:type" content="article">
+<meta property="og:title" content="NIO——及其在Golang网络库中的应用">
+<meta property="og:url" content="http://yoursite.com/2020/06/20/nio/index.html">
+<meta property="og:site_name" content="老冯的博客">
+<meta property="og:description" content="序NIO（Non-blocking I&#x2F;O），是一种同步非阻塞的I&#x2F;O模型，也是I&#x2F;O多路复用的基础，是现今主流的大流量、高并发IO有效解决方案。 五种IO模型在UNIX下，IO模式分为五类，分别是：阻塞式IO（bloking IO）、非阻塞式IO（non-blocking IO）、多路复用IO模型（multiplexing IO）、信号驱动IO模型（signal-driven IO）以及异步IO">
+<meta property="og:image" content="http://yoursite.com/images/IO.jpg">
+<meta property="article:published_time" content="2020-06-20T08:27:13.174Z">
+<meta property="article:modified_time" content="2020-06-30T14:37:31.911Z">
+<meta property="article:author" content="老冯">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://yoursite.com/images/IO.jpg">
+
+<link rel="canonical" href="http://yoursite.com/2020/06/20/nio/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>NIO——及其在Golang网络库中的应用 | 老冯的博客</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">老冯的博客</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">Learning Loop</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/06/20/nio/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="老冯">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="老冯的博客">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          NIO——及其在Golang网络库中的应用
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/network/" itemprop="url" rel="index"><span itemprop="name">network</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h3 id="序"><a href="#序" class="headerlink" title="序"></a>序</h3><p>NIO（Non-blocking I/O），是一种同步非阻塞的I/O模型，也是I/O多路复用的基础，是现今主流的大流量、高并发IO有效解决方案。</p>
+<h3 id="五种IO模型"><a href="#五种IO模型" class="headerlink" title="五种IO模型"></a>五种IO模型</h3><p>在UNIX下，IO模式分为五类，分别是：阻塞式IO（bloking IO）、非阻塞式IO（non-blocking IO）、多路复用IO模型（multiplexing IO）、信号驱动IO模型（signal-driven IO）以及异步IO模型（asynchronous IO）。其中又以前三种模式最为常见。</p>
+<a id="more"></a>
+<p><img src="/images/IO.jpg" alt=""></p>
+<center>5种IO模型对比图</center>
+
+<h3 id="传统的BIO模式"><a href="#传统的BIO模式" class="headerlink" title="传统的BIO模式"></a>传统的BIO模式</h3><p>在阐述选择NIO的原因之前，首先说明一下阻塞和非阻塞的概念。阻塞和非阻塞的核心区别就在于，在IO就绪态（读就绪、写就绪、有新连接）到来之前是否会阻塞等待。</p>
+<p>在最初的网络编程中，我们使用BIO模式构建编程模型，如下面的伪代码所示，这是经典的per thread per connection模型。这段代码的核心部分在于accept()、socket.read()、socket.write()三个函数，这三个函数在等待IO就绪态到来的过程中都将阻塞各自的线程。当连接数量达到一定程度之后，这样的阻塞、对线程资源的无效占用就变得不可容忍。后续的优化包括建立线程池，进行线程扩容，但这并没有根本解决问题。而NIO+多路复用的网络模型很好的解决了这个问题。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//BIO JAVA伪代码示意</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Server</span> </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">while</span>(<span class="keyword">true</span>)&#123;    </span><br><span class="line">            socket = server.accept();</span><br><span class="line">            executor.submit(<span class="keyword">new</span> ConnectIOHandler(socket));</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">ConnectIOnHandler</span> <span class="keyword">implements</span> <span class="title">Runnable</span></span>&#123;</span><br><span class="line">    <span class="keyword">private</span> Socket socket;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">ConnectIOnHandler</span><span class="params">(Socket socket)</span></span>&#123;</span><br><span class="line">       <span class="keyword">this</span>.socket = socket;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">run</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">while</span> (!Thread.currentThread.isInturruted() &amp;&amp; socket.isClosed()) &#123;</span><br><span class="line">            <span class="comment">//读取数据</span></span><br><span class="line">            String data = socket.read()....</span><br><span class="line">            <span class="keyword">if</span> (data != <span class="keyword">null</span>) &#123;</span><br><span class="line">                <span class="comment">//处理数据</span></span><br><span class="line">                dosomething();</span><br><span class="line">                <span class="comment">//写数据</span></span><br><span class="line">                socket.write()...</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+<h3 id="NIO-multiplexing-IO"><a href="#NIO-multiplexing-IO" class="headerlink" title="NIO + multiplexing IO"></a>NIO + multiplexing IO</h3><p>现今的高性能网络库基本采用了NIO+多路复用的模式构建，例如著名的netty，那么这是为什么呢？我们都知道，在网络IO最耗时的部分就在于等待IO就绪的过程，而真正的IO操作是一个高性能的过程，而NIO有一个重要的特点：socket的主要读、写、注册和接收函数，在等待就绪态前都是非阻塞的，只有在进行真正的IO操作时是同步阻塞的。结合多路复用带来的事件通知特性，就可以构建一套更高性能的网络模型。</p>
+<p>读到这里你可能会有疑问，为什么是NIO + multiplexing IO，而不是BIO + multiplexing IO呢？以Linux下的Epoll举例，我们向Epoll的selector中注册一个socket并标示可读事件，当epoll_wait返回可读事件EPOLLIN到来，我们只知道socket可读，但不会知道有多少的数据可读，如果我们多次调用read函数将可能导致阻塞事件发生，所以如果是BIO+ multiplexing IO，我们必须每次read过后就马上返回epoll_wait，这种要求是苛刻的，在某些业务场景下也是不允许的，所以在实际的应用中，BIO + multiplexing IO的组合几乎不会出现。</p>
+<h3 id="golang的NIO"><a href="#golang的NIO" class="headerlink" title="golang的NIO"></a>golang的NIO</h3><p>这是一个典型的Golang TCP Server示例</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line">package main</span><br><span class="line"></span><br><span class="line">import (</span><br><span class="line">	&quot;fmt&quot;</span><br><span class="line">	&quot;net&quot;</span><br><span class="line">)</span><br><span class="line"></span><br><span class="line">func main() &#123;</span><br><span class="line">	listen, err :&#x3D; net.Listen(&quot;tcp&quot;, &quot;:8888&quot;)</span><br><span class="line">	if err !&#x3D; nil &#123;</span><br><span class="line">		fmt.Println(&quot;listen error: &quot;, err)</span><br><span class="line">		return</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	for &#123;</span><br><span class="line">		conn, err :&#x3D; listen.Accept()</span><br><span class="line">		if err !&#x3D; nil &#123;</span><br><span class="line">			fmt.Println(&quot;accept error: &quot;, err)</span><br><span class="line">			break</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		&#x2F;&#x2F; start a new goroutine to handle the new connection</span><br><span class="line">		go HandleConn(conn)</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line">func HandleConn(conn net.Conn) &#123;</span><br><span class="line">	defer conn.Close()</span><br><span class="line">	packet :&#x3D; make([]byte, 1024)</span><br><span class="line">	for &#123;</span><br><span class="line">		&#x2F;&#x2F; 如果没有可读数据，也就是读 buffer 为空，则阻塞</span><br><span class="line">		_, _ &#x3D; conn.Read(packet)</span><br><span class="line">		&#x2F;&#x2F; 同理，不可写则阻塞</span><br><span class="line">		_, _ &#x3D; conn.Write(packet)</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这段代码看起来和上文中的JAVA BIO代码很类似。那么这段Go代码里就绪态等待也会阻塞线程么？答案是并不会。<br>相比与java，golang应用直接调用的是更为轻量级的协程goroutine，当socket在进行就绪态等待的时候，会阻塞协程，但是并不会阻塞线程。<br>同时，golang的原生网络库底层同样实现了一套NIO + multiplexing IO的网络模型（netpoll），我们以Linux环境举例，在Linux下，netpoll的底层实现是Epoll， 我们的连接套接字被创建后会被设置为NO-BLOCK模式，而后加入到Epoll中进行监听，当读写就绪态到来之后，套接字阻塞的goroutine会被加入到可运行队列中，等待golang调度器的调度运行。</p>
+
+    </div>
+
+    
+    
+    
+        
+
+  <div class="followme">
+    <p>欢迎关注我的其它发布渠道</p>
+
+    <div class="social-list">
+
+        <div class="social-item">
+          <a target="_blank" class="social-link" href="https://www.zhihu.com/people/shan-hou-bie-xiang-feng-13">
+            <span class="icon">
+              <i class="fab fa-zhihu"></i>
+            </span>
+
+            <span class="label">Zhihu</span>
+          </a>
+        </div>
+    </div>
+  </div>
+
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2020/05/03/nsq-source-code/" rel="prev" title="NSQ源码剖析——简单高性能的MQ实现">
+      <i class="fa fa-chevron-left"></i> NSQ源码剖析——简单高性能的MQ实现
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#序"><span class="nav-number">1.</span> <span class="nav-text">序</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#五种IO模型"><span class="nav-number">2.</span> <span class="nav-text">五种IO模型</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#传统的BIO模式"><span class="nav-number">3.</span> <span class="nav-text">传统的BIO模式</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#NIO-multiplexing-IO"><span class="nav-number">4.</span> <span class="nav-text">NIO + multiplexing IO</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#golang的NIO"><span class="nav-number">5.</span> <span class="nav-text">golang的NIO</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">老冯</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives">
+          <span class="site-state-item-count">4</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">3</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://www.zhihu.com/people/shan-hou-bie-xiang-feng-13" title="Zhihu → https:&#x2F;&#x2F;www.zhihu.com&#x2F;people&#x2F;shan-hou-bie-xiang-feng-13" rel="noopener" target="_blank"><i class="fab fa-zhihu fa-fw"></i>Zhihu</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 2019 – 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa file-code"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">老冯</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

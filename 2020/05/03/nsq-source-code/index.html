@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"always","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="一、NSQ组件nsqd ：  一个负责接收、排队、转发消息到客户端的守护进程nsqlookupd ：  管理拓扑信息并提供最终一致性的发现服务的守护进程nsqadmin ：  一套 Web 用户界面，可实时查看集群的统计数据和执行各种各样的管理任务utilities ：  常见基础功能、数据流处理工具，如 nsq_stat、nsq_tail、nsq_to_file、nsq_to_http、nsq_">
+<meta property="og:type" content="article">
+<meta property="og:title" content="NSQ源码剖析——简单高性能的MQ实现">
+<meta property="og:url" content="http://yoursite.com/2020/05/03/nsq-source-code/index.html">
+<meta property="og:site_name" content="老冯的博客">
+<meta property="og:description" content="一、NSQ组件nsqd ：  一个负责接收、排队、转发消息到客户端的守护进程nsqlookupd ：  管理拓扑信息并提供最终一致性的发现服务的守护进程nsqadmin ：  一套 Web 用户界面，可实时查看集群的统计数据和执行各种各样的管理任务utilities ：  常见基础功能、数据流处理工具，如 nsq_stat、nsq_tail、nsq_to_file、nsq_to_http、nsq_">
+<meta property="og:image" content="http://yoursite.com/images/nsq_cluster.jpg">
+<meta property="og:image" content="http://yoursite.com/images/nsq.gif">
+<meta property="og:image" content="http://yoursite.com/images/Min-heap.png">
+<meta property="og:image" content="http://yoursite.com/images/priority-queue-store.png">
+<meta property="article:published_time" content="2020-05-03T14:26:31.055Z">
+<meta property="article:modified_time" content="2020-05-13T16:56:50.099Z">
+<meta property="article:author" content="老冯">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://yoursite.com/images/nsq_cluster.jpg">
+
+<link rel="canonical" href="http://yoursite.com/2020/05/03/nsq-source-code/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>NSQ源码剖析——简单高性能的MQ实现 | 老冯的博客</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">老冯的博客</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">Learning Loop</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/05/03/nsq-source-code/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="老冯">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="老冯的博客">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          NSQ源码剖析——简单高性能的MQ实现
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/nsq/" itemprop="url" rel="index"><span itemprop="name">nsq</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h3 id="一、NSQ组件"><a href="#一、NSQ组件" class="headerlink" title="一、NSQ组件"></a>一、NSQ组件</h3><p><strong>nsqd</strong> ：<br>  一个负责接收、排队、转发消息到客户端的守护进程<br><strong>nsqlookupd</strong> ：<br>  管理拓扑信息并提供最终一致性的发现服务的守护进程<br><strong>nsqadmin</strong> ：<br>  一套 Web 用户界面，可实时查看集群的统计数据和执行各种各样的管理任务<br><strong>utilities</strong> ：<br>  常见基础功能、数据流处理工具，如 nsq_stat、nsq_tail、nsq_to_file、nsq_to_http、nsq_to_nsq、to_nsq</p>
+<a id="more"></a> 
+<hr>
+<p><img src="/images/nsq_cluster.jpg" alt=""></p>
+<center>NSQ集群组件关系图</center>
+
+<hr>
+<h3 id="二、NSQD构成"><a href="#二、NSQD构成" class="headerlink" title="二、NSQD构成"></a>二、NSQD构成</h3><p><strong>Topic</strong>：一个 topic 就是程序发布消息的一个逻辑键，当程序第一次发布消息时就会创建 topic。</p>
+<p><strong>Channel</strong>： 从属于Topic，是生产者与消费者之间的消息通道，相当于消息队列</p>
+<hr>
+<p><img src="/images/nsq.gif" alt=""></p>
+<center>NSQ Topic-Channel关系示意图</center>
+
+<hr>
+<h3 id="三、源码分析"><a href="#三、源码分析" class="headerlink" title="三、源码分析"></a>三、源码分析</h3><table>
+<thead>
+<tr>
+<th>抛出疑问</th>
+<th>答案</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>消费模式</td>
+<td>?</td>
+</tr>
+<tr>
+<td>消息消费可靠性保证</td>
+<td>?</td>
+</tr>
+<tr>
+<td>消息堆积 + 持久化</td>
+<td>?</td>
+</tr>
+<tr>
+<td>消息丢失</td>
+<td>?</td>
+</tr>
+<tr>
+<td>时序</td>
+<td>?</td>
+</tr>
+<tr>
+<td>分布式实现</td>
+<td>?</td>
+</tr>
+<tr>
+<td>延迟队列、优先级队列等高级特性</td>
+<td>?</td>
+</tr>
+</tbody></table>
+<hr>
+<h5 id="NSQD入口"><a href="#NSQD入口" class="headerlink" title="NSQD入口"></a>NSQD入口</h5><figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(n *NSQD)</span> <span class="title">Main</span><span class="params">()</span> <span class="title">error</span></span> &#123;</span><br><span class="line">	<span class="comment">/* ....省略.... */</span></span><br><span class="line">	<span class="comment">//start tcp server</span></span><br><span class="line">	n.tcpServer.ctx = ctx</span><br><span class="line">	n.waitGroup.Wrap(<span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">		<span class="comment">//nsqd/tcp.go:16</span></span><br><span class="line">		exitFunc(protocol.TCPServer(n.tcpListener, n.tcpServer, n.logf))</span><br><span class="line">	&#125;)</span><br><span class="line"></span><br><span class="line">	<span class="comment">//start http server</span></span><br><span class="line">	httpServer := newHTTPServer(ctx, <span class="literal">false</span>, n.getOpts().TLSRequired == TLSRequired)</span><br><span class="line">	n.waitGroup.Wrap(<span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">		exitFunc(http_api.Serve(n.httpListener, httpServer, <span class="string">"HTTP"</span>, n.logf))</span><br><span class="line">	&#125;)</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> n.tlsConfig != <span class="literal">nil</span> &amp;&amp; n.getOpts().HTTPSAddress != <span class="string">""</span> &#123;</span><br><span class="line">		httpsServer := newHTTPServer(ctx, <span class="literal">true</span>, <span class="literal">true</span>)</span><br><span class="line">		n.waitGroup.Wrap(<span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">			exitFunc(http_api.Serve(n.httpsListener, httpsServer, <span class="string">"HTTPS"</span>, n.logf))</span><br><span class="line">		&#125;)</span><br><span class="line">	&#125;</span><br><span class="line">  <span class="comment">//queueScanLoop runs in a single goroutine to process in-flight and deferred</span></span><br><span class="line">	n.waitGroup.Wrap(n.queueScanLoop)</span><br><span class="line">  <span class="comment">//lookup handle</span></span><br><span class="line">	n.waitGroup.Wrap(n.lookupLoop)</span><br><span class="line">	<span class="comment">/* ....省略.... */</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<hr>
+<h5 id="Tcp-Server"><a href="#Tcp-Server" class="headerlink" title="Tcp Server"></a>Tcp Server</h5><figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">TCPServer</span><span class="params">(listener net.Listener, handler TCPHandler, logf lg.AppLogFunc)</span> <span class="title">error</span></span> &#123;</span><br><span class="line">	<span class="keyword">var</span> wg sync.WaitGroup</span><br><span class="line"></span><br><span class="line">	<span class="keyword">for</span> &#123;</span><br><span class="line">		clientConn, err := listener.Accept()</span><br><span class="line">		<span class="comment">/* ....省略.... */</span></span><br><span class="line">		wg.Add(<span class="number">1</span>)</span><br><span class="line">		<span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">			<span class="comment">//nsqd/tcp.go:16</span></span><br><span class="line">			handler.Handle(clientConn)</span><br><span class="line">			wg.Done()</span><br><span class="line">		&#125;()</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// wait to return until all handler goroutines complete</span></span><br><span class="line">	wg.Wait()</span><br><span class="line"><span class="comment">/* ....省略.... */</span></span><br><span class="line">	<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<hr>
+<h5 id="Tcp-Connect-Handle"><a href="#Tcp-Connect-Handle" class="headerlink" title="Tcp Connect Handle"></a>Tcp Connect Handle</h5><figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(p *tcpServer)</span> <span class="title">Handle</span><span class="params">(clientConn net.Conn)</span></span> &#123;</span><br><span class="line">  clientConn.RemoteAddr())</span><br><span class="line">  <span class="comment">/* ....省略.... */</span></span><br><span class="line">	buf := <span class="built_in">make</span>([]<span class="keyword">byte</span>, <span class="number">4</span>)</span><br><span class="line">	_, err := io.ReadFull(clientConn, buf)</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		p.ctx.nsqd.logf(LOG_ERROR, <span class="string">"failed to read protocol version - %s"</span>, err)</span><br><span class="line">		clientConn.Close()</span><br><span class="line">		<span class="keyword">return</span></span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">//连接建立，客户端发送4个字节的协议版本</span></span><br><span class="line">	protocolMagic := <span class="keyword">string</span>(buf)</span><br><span class="line">	<span class="comment">//现在只支持V2协议，后续协议扩展只需要实现Protocol接口即可</span></span><br><span class="line">	<span class="keyword">var</span> prot protocol.Protocol</span><br><span class="line">	<span class="keyword">switch</span> protocolMagic &#123;</span><br><span class="line">	<span class="keyword">case</span> <span class="string">"  V2"</span>:</span><br><span class="line">		prot = &amp;protocolV2&#123;ctx: p.ctx&#125;</span><br><span class="line">	<span class="keyword">default</span>:</span><br><span class="line">		protocol.SendFramedResponse(clientConn, frameTypeError, []<span class="keyword">byte</span>(<span class="string">"E_BAD_PROTOCOL"</span>))</span><br><span class="line">		clientConn.Close()</span><br><span class="line">		<span class="keyword">return</span></span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">//nsqd/protocol_v2.go:36</span></span><br><span class="line">	err = prot.IOLoop(clientConn)</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		p.ctx.nsqd.logf(LOG_ERROR, <span class="string">"client(%s) - %s"</span>, clientConn.RemoteAddr(), err)</span><br><span class="line">	&#125;</span><br><span class="line">	p.conns.Delete(clientConn.RemoteAddr())</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h5 id="IO-Loop"><a href="#IO-Loop" class="headerlink" title="IO Loop"></a>IO Loop</h5><figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(p *protocolV2)</span> <span class="title">IOLoop</span><span class="params">(conn net.Conn)</span> <span class="title">error</span></span> &#123;</span><br><span class="line">	<span class="comment">/* ....省略.... */</span></span><br><span class="line">	client := newClientV2(clientID, conn, p.ctx)</span><br><span class="line">	messagePumpStartedChan := <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">bool</span>)</span><br><span class="line">	<span class="keyword">go</span> p.messagePump(client, messagePumpStartedChan)</span><br><span class="line">	&lt;-messagePumpStartedChan</span><br><span class="line"></span><br><span class="line">	<span class="comment">//处理客户端的上行消息</span></span><br><span class="line">	<span class="keyword">for</span> &#123;</span><br><span class="line">		<span class="comment">/* ....省略.... */</span></span><br><span class="line">		<span class="comment">//\n分割命令</span></span><br><span class="line">		line, err = client.Reader.ReadSlice(<span class="string">'\n'</span>)</span><br><span class="line">		<span class="comment">/* ....省略.... */</span></span><br><span class="line">		<span class="comment">// trim the '\n'</span></span><br><span class="line">		line = line[:<span class="built_in">len</span>(line)<span class="number">-1</span>]</span><br><span class="line">		<span class="comment">// optionally trim the '\r'</span></span><br><span class="line">		<span class="keyword">if</span> <span class="built_in">len</span>(line) &gt; <span class="number">0</span> &amp;&amp; line[<span class="built_in">len</span>(line)<span class="number">-1</span>] == <span class="string">'\r'</span> &#123;</span><br><span class="line">			line = line[:<span class="built_in">len</span>(line)<span class="number">-1</span>]</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="comment">//空格分割参数</span></span><br><span class="line">    params := bytes.Split(line, separatorBytes)</span><br><span class="line">		<span class="keyword">var</span> response []<span class="keyword">byte</span></span><br><span class="line">		<span class="comment">//根据参数指令，执行相应的命令</span></span><br><span class="line">		response, err = p.Exec(client, params)</span><br><span class="line">		<span class="comment">/* ....省略.... */</span></span><br><span class="line">	&#125;</span><br><span class="line">  <span class="comment">/* ....省略.... */</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<hr>
+<h5 id="PUB协议格式"><a href="#PUB协议格式" class="headerlink" title="PUB协议格式"></a>PUB协议格式</h5><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">PUB &lt;topic_name&gt;\n</span><br><span class="line">[ 4-byte size in bytes ][ N-byte binary data ]</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h5 id="Producer-Pub指令处理"><a href="#Producer-Pub指令处理" class="headerlink" title="Producer Pub指令处理"></a>Producer Pub指令处理</h5><figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(p *protocolV2)</span> <span class="title">PUB</span><span class="params">(client *clientV2, params [][]<span class="keyword">byte</span>)</span> <span class="params">([]<span class="keyword">byte</span>, error)</span></span> &#123;</span><br><span class="line">	topicName := <span class="keyword">string</span>(params[<span class="number">1</span>])</span><br><span class="line">  <span class="comment">/* ....省略.... */</span></span><br><span class="line">	<span class="comment">//数据读取</span></span><br><span class="line">	bodyLen, err := readLen(client.Reader, client.lenSlice)</span><br><span class="line">	messageBody := <span class="built_in">make</span>([]<span class="keyword">byte</span>, bodyLen)</span><br><span class="line">	_, err = io.ReadFull(client.Reader, messageBody)</span><br><span class="line">  <span class="comment">/* ....省略.... */</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">//获取推送目的topic</span></span><br><span class="line">	topic := p.ctx.nsqd.GetTopic(topicName)</span><br><span class="line">	msg := NewMessage(topic.GenerateID(), messageBody)</span><br><span class="line">	<span class="comment">//消息推入队列</span></span><br><span class="line">	err = topic.PutMessage(msg)</span><br><span class="line">  <span class="comment">/* ....省略.... */</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h5 id="Topic消息投递"><a href="#Topic消息投递" class="headerlink" title="Topic消息投递"></a>Topic消息投递</h5><figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(t *Topic)</span> <span class="title">PutMessage</span><span class="params">(m *Message)</span> <span class="title">error</span></span> &#123;</span><br><span class="line">	<span class="comment">/* ....省略.... */</span></span><br><span class="line">    err := t.put(m)</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> err</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(t *Topic)</span> <span class="title">put</span><span class="params">(m *Message)</span> <span class="title">error</span></span> &#123;</span><br><span class="line">	<span class="keyword">select</span> &#123;</span><br><span class="line">	<span class="keyword">case</span> t.memoryMsgChan &lt;- m:  <span class="comment">//内存队列</span></span><br><span class="line">	<span class="keyword">default</span>:</span><br><span class="line">		b := bufferPoolGet()</span><br><span class="line">		err := writeMessageToBackend(b, m, t.backend) <span class="comment">//磁盘队列</span></span><br><span class="line">		bufferPoolPut(b)</span><br><span class="line">		t.ctx.nsqd.SetHealth(err)</span><br><span class="line">		<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">			t.ctx.nsqd.logf(</span><br><span class="line">				<span class="string">"TOPIC(%s) ERROR: failed to write message to backend - %s"</span>,</span><br><span class="line">				t.name, err)</span><br><span class="line">			<span class="keyword">return</span> err</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<hr>
+<h5 id="获取Topic"><a href="#获取Topic" class="headerlink" title="获取Topic"></a>获取Topic</h5><figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(n *NSQD)</span> <span class="title">GetTopic</span><span class="params">(topicName <span class="keyword">string</span>)</span> *<span class="title">Topic</span></span> &#123;</span><br><span class="line">	<span class="comment">// most likely, we already have this topic, so try read lock first.</span></span><br><span class="line">	n.RLock()</span><br><span class="line">	t, ok := n.topicMap[topicName]</span><br><span class="line">	n.RUnlock()</span><br><span class="line">	<span class="keyword">if</span> ok &#123;</span><br><span class="line">		<span class="keyword">return</span> t</span><br><span class="line">	&#125;</span><br><span class="line">	n.Lock()</span><br><span class="line">	t, ok = n.topicMap[topicName]</span><br><span class="line">	<span class="keyword">if</span> ok &#123;</span><br><span class="line">		n.Unlock()</span><br><span class="line">		<span class="keyword">return</span> t</span><br><span class="line">	&#125;</span><br><span class="line">	deleteCallback := <span class="function"><span class="keyword">func</span><span class="params">(t *Topic)</span></span> &#123;</span><br><span class="line">		n.DeleteExistingTopic(t.name)</span><br><span class="line">	&#125;</span><br><span class="line">	t = NewTopic(topicName, &amp;context&#123;n&#125;, deleteCallback)</span><br><span class="line">	n.topicMap[topicName] = t</span><br><span class="line">	n.logf(<span class="string">"TOPIC(%s): created"</span>, t.name)</span><br><span class="line">	<span class="comment">// release our global nsqd lock, and switch to a more granular topic lock while we init our</span></span><br><span class="line">	<span class="comment">// channels from lookupd. This blocks concurrent PutMessages to this topic.</span></span><br><span class="line">	t.Lock()</span><br><span class="line">	n.Unlock()</span><br><span class="line">    <span class="comment">/* 下面省略从nsqlookupd获取topic信息代码，因为这个nsqd实例可能是新加的机器，所以需要执行nsqlookupd查询 */</span></span><br><span class="line">	<span class="keyword">return</span> t</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h5 id="新建Topic"><a href="#新建Topic" class="headerlink" title="新建Topic"></a>新建Topic</h5><figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">NewTopic</span><span class="params">(topicName <span class="keyword">string</span>, ctx *context, deleteCallback <span class="keyword">func</span>(*Topic)</span>) *<span class="title">Topic</span></span> &#123;</span><br><span class="line">	t := &amp;Topic&#123;</span><br><span class="line">		name:              topicName,</span><br><span class="line">    channelMap:        <span class="built_in">make</span>(<span class="keyword">map</span>[<span class="keyword">string</span>]*Channel),</span><br><span class="line">    <span class="comment">//内存队列结构</span></span><br><span class="line">		memoryMsgChan:     <span class="built_in">make</span>(<span class="keyword">chan</span> *Message, ctx.nsqd.getOpts().MemQueueSize),</span><br><span class="line">		exitChan:          <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">int</span>),</span><br><span class="line">		channelUpdateChan: <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">int</span>),</span><br><span class="line">		ctx:               ctx,</span><br><span class="line">		pauseChan:         <span class="built_in">make</span>(<span class="keyword">chan</span> <span class="keyword">bool</span>),</span><br><span class="line">		deleteCallback:    deleteCallback,</span><br><span class="line">		idFactory:         NewGUIDFactory(ctx.nsqd.getOpts().ID),</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="comment">//磁盘队列</span></span><br><span class="line">	<span class="keyword">if</span> strings.HasSuffix(topicName, <span class="string">"#ephemeral"</span>) &#123;</span><br><span class="line">		t.ephemeral = <span class="literal">true</span></span><br><span class="line">		t.backend = newDummyBackendQueue()</span><br><span class="line">	&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">		t.backend = diskqueue.New(topicName,</span><br><span class="line">			ctx.nsqd.getOpts().DataPath,</span><br><span class="line">			ctx.nsqd.getOpts().MaxBytesPerFile,</span><br><span class="line">			<span class="keyword">int32</span>(minValidMsgLength),</span><br><span class="line">			<span class="keyword">int32</span>(ctx.nsqd.getOpts().MaxMsgSize)+minValidMsgLength,</span><br><span class="line">			ctx.nsqd.getOpts().SyncEvery,</span><br><span class="line">			ctx.nsqd.getOpts().SyncTimeout,</span><br><span class="line">			ctx.nsqd.getOpts().Logger)</span><br><span class="line">	&#125;</span><br><span class="line">    <span class="comment">//最重要goroutine</span></span><br><span class="line">	t.waitGroup.Wrap(<span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123; t.messagePump() &#125;)</span><br><span class="line">	t.ctx.nsqd.Notify(t)</span><br><span class="line">	<span class="keyword">return</span> t</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h5 id="Topic事件循环"><a href="#Topic事件循环" class="headerlink" title="Topic事件循环"></a>Topic事件循环</h5><figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(t *Topic)</span> <span class="title">messagePump</span><span class="params">()</span></span> &#123;</span><br><span class="line">  <span class="comment">/* ....省略.... */</span></span><br><span class="line">	<span class="keyword">for</span> &#123;</span><br><span class="line">		<span class="keyword">select</span> &#123;</span><br><span class="line">		<span class="keyword">case</span> msg = &lt;-memoryMsgChan:</span><br><span class="line">		<span class="keyword">case</span> buf = &lt;-backendChan:</span><br><span class="line">			msg, err = decodeMessage(buf)</span><br><span class="line">			<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">				t.ctx.nsqd.logf(LOG_ERROR, <span class="string">"failed to decode message - %s"</span>, err)</span><br><span class="line">				<span class="keyword">continue</span></span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">for</span> i, channel := <span class="keyword">range</span> chans &#123;</span><br><span class="line">			chanMsg := msg</span><br><span class="line">			<span class="comment">// copy the message because each channel</span></span><br><span class="line">			<span class="comment">// needs a unique instance but...</span></span><br><span class="line">			<span class="comment">// fastpath to avoid copy if its the first channel</span></span><br><span class="line">			<span class="comment">// (the topic already created the first copy)</span></span><br><span class="line">			<span class="keyword">if</span> i &gt; <span class="number">0</span> &#123;</span><br><span class="line">				chanMsg = NewMessage(msg.ID, msg.Body)</span><br><span class="line">				chanMsg.Timestamp = msg.Timestamp</span><br><span class="line">				chanMsg.deferred = msg.deferred</span><br><span class="line">			&#125;</span><br><span class="line">			<span class="keyword">if</span> chanMsg.deferred != <span class="number">0</span> &#123;</span><br><span class="line">				channel.PutMessageDeferred(chanMsg, chanMsg.deferred)</span><br><span class="line">				<span class="keyword">continue</span></span><br><span class="line">			&#125;</span><br><span class="line">			err := channel.PutMessage(chanMsg)</span><br><span class="line">			<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">				t.ctx.nsqd.logf(LOG_ERROR,</span><br><span class="line">					<span class="string">"TOPIC(%s) ERROR: failed to put msg(%s) to channel(%s) - %s"</span>,</span><br><span class="line">					t.name, msg.ID, channel.name, err)</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">  <span class="comment">/* ....省略.... */</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<hr>
+<h5 id="Channel消息投递"><a href="#Channel消息投递" class="headerlink" title="Channel消息投递"></a>Channel消息投递</h5><figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(c *Channel)</span> <span class="title">PutMessage</span><span class="params">(m *Message)</span> <span class="title">error</span></span> &#123;</span><br><span class="line">	c.RLock()</span><br><span class="line">	<span class="keyword">defer</span> c.RUnlock()</span><br><span class="line">	<span class="keyword">if</span> c.Exiting() &#123;</span><br><span class="line">		<span class="keyword">return</span> errors.New(<span class="string">"exiting"</span>)</span><br><span class="line">	&#125;</span><br><span class="line">	err := c.put(m)</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> err</span><br><span class="line">	&#125;</span><br><span class="line">	atomic.AddUint64(&amp;c.messageCount, <span class="number">1</span>)</span><br><span class="line">	<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(c *Channel)</span> <span class="title">put</span><span class="params">(m *Message)</span> <span class="title">error</span></span> &#123;</span><br><span class="line">	<span class="keyword">select</span> &#123;</span><br><span class="line">	<span class="keyword">case</span> c.memoryMsgChan &lt;- m:</span><br><span class="line">	<span class="keyword">default</span>:</span><br><span class="line">		b := bufferPoolGet()</span><br><span class="line">		err := writeMessageToBackend(b, m, c.backend)</span><br><span class="line">		bufferPoolPut(b)</span><br><span class="line">		c.ctx.nsqd.SetHealth(err)</span><br><span class="line">		<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">			<span class="keyword">return</span> err</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<hr>
+<h5 id="PUB流程结束，向Consumer投递流程分析"><a href="#PUB流程结束，向Consumer投递流程分析" class="headerlink" title="PUB流程结束，向Consumer投递流程分析"></a>PUB流程结束，向Consumer投递流程分析</h5><figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(p *protocolV2)</span> <span class="title">messagePump</span><span class="params">(client *clientV2, startedChan <span class="keyword">chan</span> <span class="keyword">bool</span>)</span></span> &#123;</span><br><span class="line">	 <span class="comment">/* ....省略.... */</span></span><br><span class="line">	<span class="keyword">for</span> &#123;</span><br><span class="line">		 <span class="comment">/* ....省略.... */</span></span><br><span class="line">			memoryMsgChan = subChannel.memoryMsgChan</span><br><span class="line">			backendMsgChan = subChannel.backend.ReadChan()</span><br><span class="line">		<span class="keyword">select</span> &#123;</span><br><span class="line">		<span class="comment">//client channel订阅消息通知，通知后不再接收channel订阅消息</span></span><br><span class="line">		<span class="keyword">case</span> subChannel = &lt;-subEventChan:</span><br><span class="line">			<span class="comment">// you can't SUB anymore</span></span><br><span class="line">      subEventChan = <span class="literal">nil</span></span><br><span class="line">		<span class="comment">//读取客户端订阅通道的文件队列中的消息</span></span><br><span class="line">		<span class="keyword">case</span> b := &lt;-backendMsgChan:</span><br><span class="line">			<span class="comment">//根据采样率读取对应比例消息</span></span><br><span class="line">			<span class="keyword">if</span> sampleRate &gt; <span class="number">0</span> &amp;&amp; rand.Int31n(<span class="number">100</span>) &gt; sampleRate &#123;</span><br><span class="line">				<span class="keyword">continue</span></span><br><span class="line">			&#125;</span><br><span class="line">			<span class="comment">//将消息解码</span></span><br><span class="line">			msg, err := decodeMessage(b)</span><br><span class="line">			<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">				<span class="keyword">continue</span></span><br><span class="line">			&#125;</span><br><span class="line">			msg.Attempts++</span><br><span class="line">			<span class="comment">//将消息加入优先队列，设置超时时间，如果超时没收到客户端确认回复会重新进行投递，以此保证消息至少消费一次，但并不会保证消息只消费一次</span></span><br><span class="line">			subChannel.StartInFlightTimeout(msg, client.ID, msgTimeout)</span><br><span class="line">			client.SendingMessage()</span><br><span class="line">			<span class="comment">//发送消息给客户端</span></span><br><span class="line">			err = p.SendMessage(client, msg)</span><br><span class="line"></span><br><span class="line">		<span class="comment">//读取客户端订阅通道的内存队列中的消息</span></span><br><span class="line">		<span class="keyword">case</span> msg := &lt;-memoryMsgChan:</span><br><span class="line">			<span class="comment">//根据采样率读取对应比例消息</span></span><br><span class="line">			<span class="keyword">if</span> sampleRate &gt; <span class="number">0</span> &amp;&amp; rand.Int31n(<span class="number">100</span>) &gt; sampleRate &#123;</span><br><span class="line">				<span class="keyword">continue</span></span><br><span class="line">			&#125;</span><br><span class="line">			msg.Attempts++</span><br><span class="line"></span><br><span class="line">			subChannel.StartInFlightTimeout(msg, client.ID, msgTimeout)</span><br><span class="line">			client.SendingMessage()</span><br><span class="line">			<span class="comment">//发送消息给客户端</span></span><br><span class="line">			err = p.SendMessage(client, msg)</span><br><span class="line">	&#125;</span><br><span class="line"> <span class="comment">/* ....省略.... */</span></span><br></pre></td></tr></table></figure>
+<hr>
+<h5 id="消息存入优先队列，保证消息至少消费一次"><a href="#消息存入优先队列，保证消息至少消费一次" class="headerlink" title="消息存入优先队列，保证消息至少消费一次"></a>消息存入优先队列，保证消息至少消费一次</h5><figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(c *Channel)</span> <span class="title">StartInFlightTimeout</span><span class="params">(msg *Message, clientID <span class="keyword">int64</span>, timeout time.Duration)</span> <span class="title">error</span></span> &#123;</span><br><span class="line">	now := time.Now()</span><br><span class="line">	msg.clientID = clientID</span><br><span class="line">	msg.deliveryTS = now</span><br><span class="line">	msg.pri = now.Add(timeout).UnixNano()</span><br><span class="line">	<span class="comment">//存入inFlightMessage map</span></span><br><span class="line">	err := c.pushInFlightMessage(msg)</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> err</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">//存入inflightmessage优先队列</span></span><br><span class="line">	c.addToInFlightPQ(msg)</span><br><span class="line">	<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(c *Channel)</span> <span class="title">addToInFlightPQ</span><span class="params">(msg *Message)</span></span> &#123;</span><br><span class="line">	c.inFlightMutex.Lock()</span><br><span class="line">	c.inFlightPQ.Push(msg)</span><br><span class="line">	c.inFlightMutex.Unlock()</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h5 id="优先队列图示"><a href="#优先队列图示" class="headerlink" title="优先队列图示"></a>优先队列图示</h5><p><img src="/images/Min-heap.png" alt=""></p>
+<p><img src="/images/priority-queue-store.png" alt=""></p>
+<hr>
+<figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// queueScanLoop runs in a single goroutine to process </span></span><br><span class="line"><span class="comment">// It copies Redis's probabilistic expiration algorithm: it wakes up every</span></span><br><span class="line"><span class="comment">// QueueScanInterval (default: 100ms) to select a random QueueScanSelectionCount</span></span><br><span class="line"><span class="comment">// (default: 20) channels from a locally cached list (refreshed every</span></span><br><span class="line"><span class="comment">// QueueScanRefreshInterval (default: 5s)).in-flight and deferred</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(n *NSQD)</span> <span class="title">queueScanLoop</span><span class="params">()</span></span> &#123;</span><br><span class="line">	<span class="comment">/* ....省略.... */</span></span><br><span class="line">	workTicker := time.NewTicker(n.getOpts().QueueScanInterval)	<span class="comment">//default 100ms</span></span><br><span class="line">	refreshTicker := time.NewTicker(n.getOpts().QueueScanRefreshInterval)	<span class="comment">//default 5s</span></span><br><span class="line"></span><br><span class="line">	channels := n.channels()</span><br><span class="line">	n.resizePool(<span class="built_in">len</span>(channels), workCh, responseCh, closeCh)</span><br><span class="line">	<span class="keyword">for</span> &#123;</span><br><span class="line">		<span class="keyword">select</span> &#123;</span><br><span class="line">		<span class="keyword">case</span> &lt;-workTicker.C:</span><br><span class="line">			<span class="keyword">if</span> <span class="built_in">len</span>(channels) == <span class="number">0</span> &#123;</span><br><span class="line">				<span class="keyword">continue</span></span><br><span class="line">			&#125;</span><br><span class="line">		<span class="keyword">case</span> &lt;-refreshTicker.C:</span><br><span class="line">			channels = n.channels()</span><br><span class="line">			n.resizePool(<span class="built_in">len</span>(channels), workCh, responseCh, closeCh)</span><br><span class="line">			<span class="keyword">continue</span></span><br><span class="line">		<span class="keyword">case</span> &lt;-n.exitChan:</span><br><span class="line">			<span class="keyword">goto</span> exit</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		num := n.getOpts().QueueScanSelectionCount</span><br><span class="line">		<span class="comment">//向workCh投递channel</span></span><br><span class="line">	loop:</span><br><span class="line">		<span class="keyword">for</span> _, i := <span class="keyword">range</span> util.UniqRands(num, <span class="built_in">len</span>(channels)) &#123;</span><br><span class="line">			workCh &lt;- channels[i]</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		numDirty := <span class="number">0</span></span><br><span class="line">		<span class="keyword">for</span> i := <span class="number">0</span>; i &lt; num; i++ &#123;</span><br><span class="line">			<span class="keyword">if</span> &lt;-responseCh &#123;</span><br><span class="line">				numDirty++</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="comment">//存在过期消息比例高于标定值，继续一轮扫描</span></span><br><span class="line">		<span class="keyword">if</span> <span class="keyword">float64</span>(numDirty)/<span class="keyword">float64</span>(num) &gt; n.getOpts().QueueScanDirtyPercent &#123;</span><br><span class="line">			<span class="keyword">goto</span> loop</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line"><span class="comment">/* ....省略.... */</span></span><br></pre></td></tr></table></figure>
+
+<hr>
+<h5 id="客户端确认消息"><a href="#客户端确认消息" class="headerlink" title="客户端确认消息"></a>客户端确认消息</h5><figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(p *protocolV2)</span> <span class="title">FIN</span><span class="params">(client *clientV2, params [][]<span class="keyword">byte</span>)</span> <span class="params">([]<span class="keyword">byte</span>, error)</span></span> &#123;</span><br><span class="line">	state := atomic.LoadInt32(&amp;client.State)</span><br><span class="line">	<span class="keyword">if</span> state != stateSubscribed &amp;&amp; state != stateClosing &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, protocol.NewFatalClientErr(<span class="literal">nil</span>, <span class="string">"E_INVALID"</span>, <span class="string">"cannot FIN in current state"</span>)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> <span class="built_in">len</span>(params) &lt; <span class="number">2</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, protocol.NewFatalClientErr(<span class="literal">nil</span>, <span class="string">"E_INVALID"</span>, <span class="string">"FIN insufficient number of params"</span>)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	id, err := getMessageID(params[<span class="number">1</span>])</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, protocol.NewFatalClientErr(<span class="literal">nil</span>, <span class="string">"E_INVALID"</span>, err.Error())</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	err = client.Channel.FinishMessage(client.ID, *id)</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, protocol.NewClientErr(err, <span class="string">"E_FIN_FAILED"</span>,</span><br><span class="line">			fmt.Sprintf(<span class="string">"FIN %s failed %s"</span>, *id, err.Error()))</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	client.FinishedMessage()</span><br><span class="line"></span><br><span class="line">	<span class="keyword">return</span> <span class="literal">nil</span>, <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<hr>
+<figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// resizePool adjusts the size of the pool of queueScanWorker goroutines</span></span><br><span class="line"><span class="comment">//</span></span><br><span class="line"><span class="comment">// 	1 &lt;= pool &lt;= min(num * 0.25, QueueScanWorkerPoolMax)</span></span><br><span class="line"><span class="comment">//</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(n *NSQD)</span> <span class="title">resizePool</span><span class="params">(num <span class="keyword">int</span>, workCh <span class="keyword">chan</span> *Channel, responseCh <span class="keyword">chan</span> <span class="keyword">bool</span>, closeCh <span class="keyword">chan</span> <span class="keyword">int</span>)</span></span> &#123;</span><br><span class="line">	idealPoolSize := <span class="keyword">int</span>(<span class="keyword">float64</span>(num) * <span class="number">0.25</span>)</span><br><span class="line">	<span class="keyword">if</span> idealPoolSize &lt; <span class="number">1</span> &#123;</span><br><span class="line">		idealPoolSize = <span class="number">1</span></span><br><span class="line">	&#125; <span class="keyword">else</span> <span class="keyword">if</span> idealPoolSize &gt; n.getOpts().QueueScanWorkerPoolMax &#123;</span><br><span class="line">		idealPoolSize = n.getOpts().QueueScanWorkerPoolMax</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">for</span> &#123;</span><br><span class="line">		<span class="keyword">if</span> idealPoolSize == n.poolSize &#123;</span><br><span class="line">			<span class="keyword">break</span></span><br><span class="line">		&#125; <span class="keyword">else</span> <span class="keyword">if</span> idealPoolSize &lt; n.poolSize &#123;</span><br><span class="line">			<span class="comment">// contract</span></span><br><span class="line">			closeCh &lt;- <span class="number">1</span></span><br><span class="line">			n.poolSize--</span><br><span class="line">		&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">			<span class="comment">// expand</span></span><br><span class="line">			<span class="comment">//启动一个queueScanWorker</span></span><br><span class="line">			n.waitGroup.Wrap(<span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">				n.queueScanWorker(workCh, responseCh, closeCh)</span><br><span class="line">			&#125;)</span><br><span class="line">			n.poolSize++</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<hr>
+<h5 id="扫描优先队列"><a href="#扫描优先队列" class="headerlink" title="扫描优先队列"></a>扫描优先队列</h5><figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// queueScanWorker receives work (in the form of a channel) from queueScanLoop</span></span><br><span class="line"><span class="comment">// and processes the deferred and in-flight queues</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(n *NSQD)</span> <span class="title">queueScanWorker</span><span class="params">(workCh <span class="keyword">chan</span> *Channel, responseCh <span class="keyword">chan</span> <span class="keyword">bool</span>, closeCh <span class="keyword">chan</span> <span class="keyword">int</span>)</span></span> &#123;</span><br><span class="line">	<span class="keyword">for</span> &#123;</span><br><span class="line">		<span class="keyword">select</span> &#123;</span><br><span class="line">		<span class="keyword">case</span> c := &lt;-workCh:</span><br><span class="line">			<span class="comment">//判断两个队列中是否存在到期消息</span></span><br><span class="line">			now := time.Now().UnixNano()</span><br><span class="line">			dirty := <span class="literal">false</span></span><br><span class="line">			<span class="keyword">if</span> c.processInFlightQueue(now) &#123;</span><br><span class="line">				dirty = <span class="literal">true</span></span><br><span class="line">			&#125;</span><br><span class="line">			<span class="keyword">if</span> c.processDeferredQueue(now) &#123;</span><br><span class="line">				dirty = <span class="literal">true</span></span><br><span class="line">			&#125;</span><br><span class="line">			<span class="comment">//将判断结果发送到responseCh</span></span><br><span class="line">			responseCh &lt;- dirty</span><br><span class="line">		<span class="keyword">case</span> &lt;-closeCh:</span><br><span class="line">			<span class="keyword">return</span></span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<hr>
+<h5 id="从优先队列移除消息"><a href="#从优先队列移除消息" class="headerlink" title="从优先队列移除消息"></a>从优先队列移除消息</h5><figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// FinishMessage successfully discards an in-flight message</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(c *Channel)</span> <span class="title">FinishMessage</span><span class="params">(clientID <span class="keyword">int64</span>, id MessageID)</span> <span class="title">error</span></span> &#123;</span><br><span class="line">	msg, err := c.popInFlightMessage(clientID, id)</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> err</span><br><span class="line">	&#125;</span><br><span class="line">	c.removeFromInFlightPQ(msg)</span><br><span class="line">	<span class="keyword">if</span> c.e2eProcessingLatencyStream != <span class="literal">nil</span> &#123;</span><br><span class="line">		c.e2eProcessingLatencyStream.Insert(msg.Timestamp)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<hr>
+<h3 id="四、NSQ总结"><a href="#四、NSQ总结" class="headerlink" title="四、NSQ总结"></a>四、NSQ总结</h3><table>
+<thead>
+<tr>
+<th>疑问</th>
+<th>答案</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>消费模式</td>
+<td>push</td>
+</tr>
+<tr>
+<td>消息发送可靠性保证</td>
+<td>未保证，tcp连接异常会导致投递消息丢失</td>
+</tr>
+<tr>
+<td>消息消费可靠性保证</td>
+<td>至少投递一次</td>
+</tr>
+<tr>
+<td>消息堆积 + 持久化</td>
+<td>内存队列+磁盘队列</td>
+</tr>
+<tr>
+<td>消息丢失</td>
+<td>nsqd异常宕机会导致消息丢失</td>
+</tr>
+<tr>
+<td>时序</td>
+<td>非时序</td>
+</tr>
+<tr>
+<td>分布式实现</td>
+<td>去中心化</td>
+</tr>
+<tr>
+<td>延迟队列、优先级队列等高级特性</td>
+<td>支持延迟队列</td>
+</tr>
+</tbody></table>
+
+    </div>
+
+    
+    
+    
+        
+
+  <div class="followme">
+    <p>欢迎关注我的其它发布渠道</p>
+
+    <div class="social-list">
+
+        <div class="social-item">
+          <a target="_blank" class="social-link" href="https://www.zhihu.com/people/shan-hou-bie-xiang-feng-13">
+            <span class="icon">
+              <i class="fab fa-zhihu"></i>
+            </span>
+
+            <span class="label">Zhihu</span>
+          </a>
+        </div>
+    </div>
+  </div>
+
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2020/04/21/visitor/" rel="prev" title="设计模式系列——访问者模式">
+      <i class="fa fa-chevron-left"></i> 设计模式系列——访问者模式
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2020/06/20/nio/" rel="next" title="NIO——及其在Golang网络库中的应用">
+      NIO——及其在Golang网络库中的应用 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#一、NSQ组件"><span class="nav-number">1.</span> <span class="nav-text">一、NSQ组件</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#二、NSQD构成"><span class="nav-number">2.</span> <span class="nav-text">二、NSQD构成</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#三、源码分析"><span class="nav-number">3.</span> <span class="nav-text">三、源码分析</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#NSQD入口"><span class="nav-number">3.0.1.</span> <span class="nav-text">NSQD入口</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#Tcp-Server"><span class="nav-number">3.0.2.</span> <span class="nav-text">Tcp Server</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#Tcp-Connect-Handle"><span class="nav-number">3.0.3.</span> <span class="nav-text">Tcp Connect Handle</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#IO-Loop"><span class="nav-number">3.0.4.</span> <span class="nav-text">IO Loop</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#PUB协议格式"><span class="nav-number">3.0.5.</span> <span class="nav-text">PUB协议格式</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#Producer-Pub指令处理"><span class="nav-number">3.0.6.</span> <span class="nav-text">Producer Pub指令处理</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#Topic消息投递"><span class="nav-number">3.0.7.</span> <span class="nav-text">Topic消息投递</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#获取Topic"><span class="nav-number">3.0.8.</span> <span class="nav-text">获取Topic</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#新建Topic"><span class="nav-number">3.0.9.</span> <span class="nav-text">新建Topic</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#Topic事件循环"><span class="nav-number">3.0.10.</span> <span class="nav-text">Topic事件循环</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#Channel消息投递"><span class="nav-number">3.0.11.</span> <span class="nav-text">Channel消息投递</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#PUB流程结束，向Consumer投递流程分析"><span class="nav-number">3.0.12.</span> <span class="nav-text">PUB流程结束，向Consumer投递流程分析</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#消息存入优先队列，保证消息至少消费一次"><span class="nav-number">3.0.13.</span> <span class="nav-text">消息存入优先队列，保证消息至少消费一次</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#优先队列图示"><span class="nav-number">3.0.14.</span> <span class="nav-text">优先队列图示</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#客户端确认消息"><span class="nav-number">3.0.15.</span> <span class="nav-text">客户端确认消息</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#扫描优先队列"><span class="nav-number">3.0.16.</span> <span class="nav-text">扫描优先队列</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#从优先队列移除消息"><span class="nav-number">3.0.17.</span> <span class="nav-text">从优先队列移除消息</span></a></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#四、NSQ总结"><span class="nav-number">4.</span> <span class="nav-text">四、NSQ总结</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">老冯</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives">
+          <span class="site-state-item-count">4</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">3</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://www.zhihu.com/people/shan-hou-bie-xiang-feng-13" title="Zhihu → https:&#x2F;&#x2F;www.zhihu.com&#x2F;people&#x2F;shan-hou-bie-xiang-feng-13" rel="noopener" target="_blank"><i class="fab fa-zhihu fa-fw"></i>Zhihu</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 2019 – 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa file-code"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">老冯</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
