@@ -26,12 +26,12 @@
 <meta property="og:url" content="http://yoursite.com/2020/06/20/nio/index.html">
 <meta property="og:site_name" content="老冯的博客">
 <meta property="og:description" content="序NIO（Non-blocking I&#x2F;O），是一种同步非阻塞的I&#x2F;O模型，也是I&#x2F;O多路复用的基础，是现今主流的大流量、高并发IO有效解决方案。 五种IO模型在UNIX下，IO模式分为五类，分别是：阻塞式IO（bloking IO）、非阻塞式IO（non-blocking IO）、多路复用IO模型（multiplexing IO）、信号驱动IO模型（signal-driven IO）以及异步IO">
-<meta property="og:image" content="http://yoursite.com/images/IO.jpg">
+<meta property="og:image" content="http://yoursite.com/images/io.jpg">
 <meta property="article:published_time" content="2020-06-20T08:27:13.174Z">
-<meta property="article:modified_time" content="2020-06-30T14:37:31.911Z">
+<meta property="article:modified_time" content="2020-06-30T14:56:57.457Z">
 <meta property="article:author" content="老冯">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="http://yoursite.com/images/IO.jpg">
+<meta name="twitter:image" content="http://yoursite.com/images/io.jpg">
 
 <link rel="canonical" href="http://yoursite.com/2020/06/20/nio/">
 
@@ -193,7 +193,7 @@
         <h3 id="序"><a href="#序" class="headerlink" title="序"></a>序</h3><p>NIO（Non-blocking I/O），是一种同步非阻塞的I/O模型，也是I/O多路复用的基础，是现今主流的大流量、高并发IO有效解决方案。</p>
 <h3 id="五种IO模型"><a href="#五种IO模型" class="headerlink" title="五种IO模型"></a>五种IO模型</h3><p>在UNIX下，IO模式分为五类，分别是：阻塞式IO（bloking IO）、非阻塞式IO（non-blocking IO）、多路复用IO模型（multiplexing IO）、信号驱动IO模型（signal-driven IO）以及异步IO模型（asynchronous IO）。其中又以前三种模式最为常见。</p>
 <a id="more"></a>
-<p><img src="/images/IO.jpg" alt=""></p>
+<p><img src="/images/io.jpg" alt=""></p>
 <center>5种IO模型对比图</center>
 
 <h3 id="传统的BIO模式"><a href="#传统的BIO模式" class="headerlink" title="传统的BIO模式"></a>传统的BIO模式</h3><p>在阐述选择NIO的原因之前，首先说明一下阻塞和非阻塞的概念。阻塞和非阻塞的核心区别就在于，在IO就绪态（读就绪、写就绪、有新连接）到来之前是否会阻塞等待。</p>
