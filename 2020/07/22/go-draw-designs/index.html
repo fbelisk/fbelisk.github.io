@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"always","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="【译】Go2设计草案作为Go2设计过程的一部分，我们已经发布了以下三个主题的设计草案用于开启社区的讨论，它们分别是：泛型（generics）、错误处理（error handling）和错误值语义（error value semantics）。 从Go提案流程的意义上说，这些设计草案不是提案。它们是讨论的起点，最终的目标是产生足以被转化为实际建议的设计。 每个设计草案都附有“问题概述”。问题概述旨在">
+<meta property="og:type" content="article">
+<meta property="og:title" content="【译】Go2设计草案">
+<meta property="og:url" content="http://yoursite.com/2020/07/22/go-draw-designs/index.html">
+<meta property="og:site_name" content="冯建斌的博客">
+<meta property="og:description" content="【译】Go2设计草案作为Go2设计过程的一部分，我们已经发布了以下三个主题的设计草案用于开启社区的讨论，它们分别是：泛型（generics）、错误处理（error handling）和错误值语义（error value semantics）。 从Go提案流程的意义上说，这些设计草案不是提案。它们是讨论的起点，最终的目标是产生足以被转化为实际建议的设计。 每个设计草案都附有“问题概述”。问题概述旨在">
+<meta property="article:published_time" content="2020-07-22T13:48:05.350Z">
+<meta property="article:modified_time" content="2020-08-02T11:45:04.147Z">
+<meta property="article:author" content="冯建斌">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://yoursite.com/2020/07/22/go-draw-designs/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>【译】Go2设计草案 | 冯建斌的博客</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">冯建斌的博客</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">Learning Loop</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/07/22/go-draw-designs/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="冯建斌">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="冯建斌的博客">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          【译】Go2设计草案
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Go/" itemprop="url" rel="index"><span itemprop="name">Go</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="【译】Go2设计草案"><a href="#【译】Go2设计草案" class="headerlink" title="【译】Go2设计草案"></a>【译】Go2设计草案</h1><p>作为Go2设计过程的一部分，我们已经发布了以下三个主题的设计草案用于开启社区的讨论，它们分别是：泛型（generics）、错误处理（error handling）和错误值语义（error value semantics）。</p>
+<p>从Go提案流程的意义上说，这些设计草案不是提案。它们是讨论的起点，最终的目标是产生足以被转化为实际建议的设计。</p>
+<p>每个设计草案都附有“问题概述”。问题概述旨在提供问题的上下文；为实际的设计文档打下基础，其中当然会提供设计细节；并帮助设计和指导有关设计的讨论。它包含了背景、目标、非目标、设计约束、设计摘要、我们认为最需要关注的领域的简短讨论以及与以前方法的比较。</p>
+<p>再次强调，这些是设计草案，而不是最终的方案。我们希望所有Go用户都能帮助我们改进他们并将其转变为Go提案。我们建立了一个Wiki页面来收集和组织有关每个Topic的反馈。请帮助我们使这些页面保持最新状态，包括添加指向您自己的反馈的链接。</p>
+<a id="more"></a>
+
+<h4 id="错误处理（Error-handling）"><a href="#错误处理（Error-handling）" class="headerlink" title="错误处理（Error handling）"></a>错误处理（Error handling）</h4><h5 id="介绍"><a href="#介绍" class="headerlink" title="介绍"></a>介绍</h5><p>Go2的总体目标是努力找到方法解决Go无法扩展到大型代码库和大型开发者的问题。</p>
+<p>编写错误检查和错误处理代码是Go程序无法很好扩展的一个原因。通常，Go程序有太多的错误检查代码，而没有足够的代码来处理它们。（这将在下面说明）设计草案旨在通过引入比当前惯用的语句组合更轻量的错误检查语法来解决此问题。</p>
+<p>作为Go 2的一部分，我们还单独考虑更改错误值的语义。</p>
+<h5 id="问题"><a href="#问题" class="headerlink" title="问题"></a>问题</h5><p>为了扩展到较大的代码库，Go程序必须是轻量级的，没有不必要的重复，同时必须健壮的，可以在出现错误时优雅地对其进行处理。</p>
+<p>在Go的设计中，我们做出了有意识的选择，以使用显式错误结果和显式错误检查。相比之下，C通常显式的对隐式的错误结果以及errorno进行检查，而异常处理（包括C ++，C＃，Java和Python在内的许多语言中都有）相当于隐式结果的隐式检查。</p>
+<p>在Raymond Chen的两对博客文章中，对隐式检查的微妙性有很好的总结：““Cleaner, more elegant, and wrong”（2004年）和““Cleaner, more elegant, and harder to recognize”（2005年）。从本质上讲，因为您根本看不到隐式检查，所以很难检查验证错误处理代码在检查失败时是否可以将程序状态从错误中恢复。</p>
+<p>例如，考虑以下代码，该代码使用Go编写：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">func CopyFile(src, dst string) throws error &#123;</span><br><span class="line">	r :&#x3D; os.Open(src)</span><br><span class="line">	defer r.Close()</span><br><span class="line"></span><br><span class="line">	w :&#x3D; os.Create(dst)</span><br><span class="line">	io.Copy(w, r)</span><br><span class="line">	w.Close()</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这是一个美好，整洁，优雅的代码。但它的错误也是不可见的：如果io.Copy还是w.Close失败，代码不会删除被部分写入的dst文件。</p>
+<p>另一方面，在实际中Go代码的呈现会如下所示：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">func CopyFile(src, dst string) error &#123;</span><br><span class="line">	r, err :&#x3D; os.Open(src)</span><br><span class="line">	if err !&#x3D; nil &#123;</span><br><span class="line">		return err</span><br><span class="line">	&#125;</span><br><span class="line">	defer r.Close()</span><br><span class="line"></span><br><span class="line">	w, err :&#x3D; os.Create(dst)</span><br><span class="line">	if err !&#x3D; nil &#123;</span><br><span class="line">		return err</span><br><span class="line">	&#125;</span><br><span class="line">	defer w.Close()</span><br><span class="line"></span><br><span class="line">	if _, err :&#x3D; io.Copy(w, r); err !&#x3D; nil &#123;</span><br><span class="line">		return err</span><br><span class="line">	&#125;</span><br><span class="line">	if err :&#x3D; w.Close(); err !&#x3D; nil &#123;</span><br><span class="line">		return err</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这段代码不够好，不整洁，不优雅，并且仍然存在错误：与以前的版本一样，它不会在出现io.Copy或w.Close失败时将dst文件删除。有一个合理的论点，即可见的错误检查会使得细心的代码阅读者了解正确的错误处理响应。但是在实践中，错误检查占用了很大的空间，以至于读者需要快婿学会跳过它们以查看代码的结构。</p>
+<p>该代码在错误处理方面还有第二个遗漏。函数通常应在错误中包含有关其参数的相关信息，例如os.Open返回正在打开的文件的名称。未经修改就返回错误中没有包含任何导致错误的操作顺序信息。</p>
+<p>简而言之，上述的Go代码具有过多的错误检查和不足的错误处理。而更加健壮的版本如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">func CopyFile(src, dst string) error &#123;</span><br><span class="line">	r, err :&#x3D; os.Open(src)</span><br><span class="line">	if err !&#x3D; nil &#123;</span><br><span class="line">		return fmt.Errorf(&quot;copy %s %s: %v&quot;, src, dst, err)</span><br><span class="line">	&#125;</span><br><span class="line">	defer r.Close()</span><br><span class="line"></span><br><span class="line">	w, err :&#x3D; os.Create(dst)</span><br><span class="line">	if err !&#x3D; nil &#123;</span><br><span class="line">		return fmt.Errorf(&quot;copy %s %s: %v&quot;, src, dst, err)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	if _, err :&#x3D; io.Copy(w, r); err !&#x3D; nil &#123;</span><br><span class="line">		w.Close()</span><br><span class="line">		os.Remove(dst)</span><br><span class="line">		return fmt.Errorf(&quot;copy %s %s: %v&quot;, src, dst, err)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	if err :&#x3D; w.Close(); err !&#x3D; nil &#123;</span><br><span class="line">		os.Remove(dst)</span><br><span class="line">		return fmt.Errorf(&quot;copy %s %s: %v&quot;, src, dst, err)</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>但纠正这些错误只会使代码更正确，而不会使代码更清晰或更优雅。</p>
+<h5 id="目标"><a href="#目标" class="headerlink" title="目标"></a>目标</h5><p>对于Go 2，我们希望错误检查可以更加轻量，从而减少专用于错误检查的Go程序文本数量。同时，我们还希望编写错误处理可以更加方便，从而提高程序员花费时间进行处理的可能性。</p>
+<p><strong>错误检查和错误处理都必须保持显式</strong>，即在程序文本中可见。我们不想重复异常处理的陷阱。</p>
+<p>要保证现有的代码的有效性。任何更改都必须与现有代码互相兼容。</p>
+<p>如上所述，更改或增强错误的语义不是设计草案的目标。</p>
+<h5 id="设计草案"><a href="#设计草案" class="headerlink" title="设计草案"></a>设计草案</h5><p>本节快速总结了设计草案，将其作为高水准讨论以及和与其他方法进行比较的基础。</p>
+<p>设计草案引入了两种新的语法形式。首先，它引入一个检查表达式 <em>check f(x, y, z)</em> 或者 <em>check err*，标记一个显式的错误检查。其次，它引入了 *handle</em> 语句用于定义错误处理程序。当错误检查失败时，它将控制权转移到最内层的错误处理程序，之后控制程序将控制权转移到更上层的处理程序，依此类推，直到处理程序执行一条return语句。</p>
+<p>示例代码如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">func CopyFile(src, dst string) error &#123;</span><br><span class="line">	handle err &#123;</span><br><span class="line">		return fmt.Errorf(&quot;copy %s %s: %v&quot;, src, dst, err)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	r :&#x3D; check os.Open(src)</span><br><span class="line">	defer r.Close()</span><br><span class="line"></span><br><span class="line">	w :&#x3D; check os.Create(dst)</span><br><span class="line">	handle err &#123;</span><br><span class="line">		w.Close()</span><br><span class="line">		os.Remove(dst) &#x2F;&#x2F; (only if a check fails)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	check io.Copy(w, r)</span><br><span class="line">	check w.Close()</span><br><span class="line">	return nil</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>使用 <em>check/handle</em> 组合允许函数本身不返回错误。例如，这是一个main函数的例子来自 <a href="https://github.com/rsc/tmp/blob/master/unhex/main.go" target="_blank" rel="noopener">useful but trivial program</a>：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">func main() &#123;</span><br><span class="line">	hex, err :&#x3D; ioutil.ReadAll(os.Stdin)</span><br><span class="line">	if err !&#x3D; nil &#123;</span><br><span class="line">		log.Fatal(err)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	data, err :&#x3D; parseHexdump(string(hex))</span><br><span class="line">	if err !&#x3D; nil &#123;</span><br><span class="line">		log.Fatal(err)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	os.Stdout.Write(data)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>写起来会更短更清晰：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">func main() &#123;</span><br><span class="line">	handle err &#123;</span><br><span class="line">		log.Fatal(err)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	hex :&#x3D; check ioutil.ReadAll(os.Stdin)</span><br><span class="line">	data :&#x3D; check parseHexdump(string(hex))</span><br><span class="line">	os.Stdout.Write(data)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>更详细的信息，请参阅<a href="https://go.googlesource.com/proposal/+/master/design/go2draft-error-handling.md" target="_blank" rel="noopener">草稿设计</a>。</p>
+<h5 id="讨论和开放性问题"><a href="#讨论和开放性问题" class="headerlink" title="讨论和开放性问题"></a>讨论和开放性问题</h5><p>这些设计草案仅作为社区讨论的起点。我们非常希望可以根据反馈（尤其是经验报告）对细节进行修订。本节概述了仍有待回答的一些问题。</p>
+<p><strong>check还是try</strong>。关键字check明确说明了正在执行的操作。最初，我们使用众所周知的异常处理关键字try。对于函数调用，它的阅读性确实很不错：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">data :&#x3D; try parseHexdump(string(hex))</span><br></pre></td></tr></table></figure>
+
+<p>但是对于需要对错误值进行校验的情况，它的读取效果并不理想：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">data, err :&#x3D; parseHexdump(string(hex))</span><br><span class="line">if err &#x3D;&#x3D; ErrBadHex &#123;</span><br><span class="line">	... special handling ...</span><br><span class="line">&#125;</span><br><span class="line">try err</span><br></pre></td></tr></table></figure>
+
+
+<p>在这种情况下，check err比起try err更加清晰。Rust起初使用于 <em>try!</em> 标记一个显式的错误检查，但后来改为使用特殊的 <em>?</em> 运算符。Swift不仅使用 <em>try</em> 标记显式错误检查，而且还用于 <em>try!</em> 和 <em>try?</em> ，同时，和大多数的错误处理一样，<em>throw</em> 和 <em>catch</em>也是错误处理的一部分。</p>
+<p>总体而言，设计草案中的 <em>check/handle</em> 与Rust和Swift中的异常处理是十分不同的，它使用更清晰的关键字<em>check</em>，而不是更熟悉的关键字<em>try</em>。</p>
+<p><strong>Defer</strong> 错误处理程序在某些方面类似于defer和recover，但是只针对errors而不是panics。当前的草案设计使错误处理程序按词法构建执行链，而defer根据代码的执行在运行时构建执行链条。这种差异对于在条件主体和循环中声明的处理程序（或延迟函数）很重要。尽管错误处理程序使用词法栈看起来似乎是一个略微更好的设计，但defer准确匹配可能并不奇怪。作为一个类似的defer处理会更方便的示例，如果CopyFile将其目的地设置w为os.Stdout或结果os.Create，则能够os.Remove(dst)有条件地引入处理程序将很有帮助。</p>
+<p><strong>Panics</strong> 我们花了一段时间来尝试统一error handle和panic，使得我们可以在已经处理error的情况不必额外处理panic。但我们所有对统一的尝试都带来了更多的复杂性。</p>
+<p><strong>Feedback</strong> 最有用的一般反馈将是设计草案启用或不允许的有趣用途的示例。我们也欢迎您对以上几点提出反馈，尤其是根据实际程序中复杂或错误的错误处理经验。</p>
+<p>我们正在<a href="https://golang.org/wiki/Go2ErrorHandlingFeedback" target="_blank" rel="noopener">https://golang.org/wiki/Go2ErrorHandlingFeedback</a>上收集反馈的链接。</p>
+
+    </div>
+
+    
+    
+    
+        
+
+  <div class="followme">
+    <p>欢迎关注我的其它发布渠道</p>
+
+    <div class="social-list">
+
+        <div class="social-item">
+          <a target="_blank" class="social-link" href="https://www.zhihu.com/people/shan-hou-bie-xiang-feng-13">
+            <span class="icon">
+              <i class="fab fa-zhihu"></i>
+            </span>
+
+            <span class="label">Zhihu</span>
+          </a>
+        </div>
+    </div>
+  </div>
+
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2020/06/20/nio/" rel="prev" title="NIO——及其在Golang网络库中的应用">
+      <i class="fa fa-chevron-left"></i> NIO——及其在Golang网络库中的应用
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#【译】Go2设计草案"><span class="nav-number">1.</span> <span class="nav-text">【译】Go2设计草案</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#错误处理（Error-handling）"><span class="nav-number">1.0.0.1.</span> <span class="nav-text">错误处理（Error handling）</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#介绍"><span class="nav-number">1.0.0.1.1.</span> <span class="nav-text">介绍</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#问题"><span class="nav-number">1.0.0.1.2.</span> <span class="nav-text">问题</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#目标"><span class="nav-number">1.0.0.1.3.</span> <span class="nav-text">目标</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#设计草案"><span class="nav-number">1.0.0.1.4.</span> <span class="nav-text">设计草案</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#讨论和开放性问题"><span class="nav-number">1.0.0.1.5.</span> <span class="nav-text">讨论和开放性问题</span></a></li></ol></li></ol></li></ol></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">冯建斌</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives">
+          <span class="site-state-item-count">5</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 2019 – 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa file-code"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">冯建斌</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

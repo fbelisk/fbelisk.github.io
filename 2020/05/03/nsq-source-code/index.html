@@ -20,19 +20,19 @@
     var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"always","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
   </script>
 
-  <meta name="description" content="一、NSQ组件nsqd ：  一个负责接收、排队、转发消息到客户端的守护进程nsqlookupd ：  管理拓扑信息并提供最终一致性的发现服务的守护进程nsqadmin ：  一套 Web 用户界面，可实时查看集群的统计数据和执行各种各样的管理任务utilities ：  常见基础功能、数据流处理工具，如 nsq_stat、nsq_tail、nsq_to_file、nsq_to_http、nsq_">
+  <meta name="description" content="序最近在公司内部进行了一次以Nsq为主题的技术分享，经过稍许的整理，把PPT转作博文呈现。 一、NSQ组件nsqd ：  一个负责接收、排队、转发消息到客户端的守护进程nsqlookupd ：  管理拓扑信息并提供最终一致性的发现服务的守护进程nsqadmin ：  一套 Web 用户界面，可实时查看集群的统计数据和执行各种各样的管理任务utilities ：  常见基础功能、数据流处理工具，如">
 <meta property="og:type" content="article">
 <meta property="og:title" content="NSQ源码剖析——简单高性能的MQ实现">
 <meta property="og:url" content="http://yoursite.com/2020/05/03/nsq-source-code/index.html">
-<meta property="og:site_name" content="吃西瓜不吐籽">
-<meta property="og:description" content="一、NSQ组件nsqd ：  一个负责接收、排队、转发消息到客户端的守护进程nsqlookupd ：  管理拓扑信息并提供最终一致性的发现服务的守护进程nsqadmin ：  一套 Web 用户界面，可实时查看集群的统计数据和执行各种各样的管理任务utilities ：  常见基础功能、数据流处理工具，如 nsq_stat、nsq_tail、nsq_to_file、nsq_to_http、nsq_">
+<meta property="og:site_name" content="冯建斌的博客">
+<meta property="og:description" content="序最近在公司内部进行了一次以Nsq为主题的技术分享，经过稍许的整理，把PPT转作博文呈现。 一、NSQ组件nsqd ：  一个负责接收、排队、转发消息到客户端的守护进程nsqlookupd ：  管理拓扑信息并提供最终一致性的发现服务的守护进程nsqadmin ：  一套 Web 用户界面，可实时查看集群的统计数据和执行各种各样的管理任务utilities ：  常见基础功能、数据流处理工具，如">
 <meta property="og:image" content="http://yoursite.com/images/nsq_cluster.jpg">
 <meta property="og:image" content="http://yoursite.com/images/nsq.gif">
 <meta property="og:image" content="http://yoursite.com/images/Min-heap.png">
 <meta property="og:image" content="http://yoursite.com/images/priority-queue-store.png">
 <meta property="article:published_time" content="2020-05-03T14:26:31.055Z">
-<meta property="article:modified_time" content="2020-05-13T16:56:50.099Z">
-<meta property="article:author" content="吃西瓜不吐籽">
+<meta property="article:modified_time" content="2020-07-07T13:12:10.856Z">
+<meta property="article:author" content="冯建斌">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:image" content="http://yoursite.com/images/nsq_cluster.jpg">
 
@@ -49,7 +49,7 @@
   };
 </script>
 
-  <title>NSQ源码剖析——简单高性能的MQ实现 | 吃西瓜不吐籽</title>
+  <title>NSQ源码剖析——简单高性能的MQ实现 | 冯建斌的博客</title>
   
 
 
@@ -100,7 +100,7 @@
 
     <a href="/" class="brand" rel="start">
       <span class="logo-line-before"><i></i></span>
-      <h1 class="site-title">吃西瓜不吐籽</h1>
+      <h1 class="site-title">冯建斌的博客</h1>
       <span class="logo-line-after"><i></i></span>
     </a>
       <p class="site-subtitle" itemprop="description">Learning Loop</p>
@@ -159,12 +159,12 @@
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="吃西瓜不吐籽">
+      <meta itemprop="name" content="冯建斌">
       <meta itemprop="description" content="">
     </span>
 
     <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="吃西瓜不吐籽">
+      <meta itemprop="name" content="冯建斌的博客">
     </span>
       <header class="post-header">
         <h1 class="post-title" itemprop="name headline">
@@ -178,7 +178,7 @@
               </span>
               <span class="post-meta-item-text">分类于</span>
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/nsq/" itemprop="url" rel="index"><span itemprop="name">nsq</span></a>
+                  <a href="/categories/%E6%B6%88%E6%81%AF%E9%98%9F%E5%88%97/" itemprop="url" rel="index"><span itemprop="name">消息队列</span></a>
                 </span>
             </span>
 
@@ -193,7 +193,8 @@
     <div class="post-body" itemprop="articleBody">
 
       
-        <h3 id="一、NSQ组件"><a href="#一、NSQ组件" class="headerlink" title="一、NSQ组件"></a>一、NSQ组件</h3><p><strong>nsqd</strong> ：<br>  一个负责接收、排队、转发消息到客户端的守护进程<br><strong>nsqlookupd</strong> ：<br>  管理拓扑信息并提供最终一致性的发现服务的守护进程<br><strong>nsqadmin</strong> ：<br>  一套 Web 用户界面，可实时查看集群的统计数据和执行各种各样的管理任务<br><strong>utilities</strong> ：<br>  常见基础功能、数据流处理工具，如 nsq_stat、nsq_tail、nsq_to_file、nsq_to_http、nsq_to_nsq、to_nsq</p>
+        <h3 id="序"><a href="#序" class="headerlink" title="序"></a>序</h3><p>最近在公司内部进行了一次以Nsq为主题的技术分享，经过稍许的整理，把PPT转作博文呈现。</p>
+<h3 id="一、NSQ组件"><a href="#一、NSQ组件" class="headerlink" title="一、NSQ组件"></a>一、NSQ组件</h3><p><strong>nsqd</strong> ：<br>  一个负责接收、排队、转发消息到客户端的守护进程<br><strong>nsqlookupd</strong> ：<br>  管理拓扑信息并提供最终一致性的发现服务的守护进程<br><strong>nsqadmin</strong> ：<br>  一套 Web 用户界面，可实时查看集群的统计数据和执行各种各样的管理任务<br><strong>utilities</strong> ：<br>  常见基础功能、数据流处理工具，如 nsq_stat、nsq_tail、nsq_to_file、nsq_to_http、nsq_to_nsq、to_nsq</p>
 <a id="more"></a> 
 <hr>
 <p><img src="/images/nsq_cluster.jpg" alt=""></p>
@@ -429,36 +430,31 @@
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
-          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#一、NSQ组件"><span class="nav-number">1.</span> <span class="nav-text">一、NSQ组件</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#二、NSQD构成"><span class="nav-number">2.</span> <span class="nav-text">二、NSQD构成</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#三、源码分析"><span class="nav-number">3.</span> <span class="nav-text">三、源码分析</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#NSQD入口"><span class="nav-number">3.0.1.</span> <span class="nav-text">NSQD入口</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#Tcp-Server"><span class="nav-number">3.0.2.</span> <span class="nav-text">Tcp Server</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#Tcp-Connect-Handle"><span class="nav-number">3.0.3.</span> <span class="nav-text">Tcp Connect Handle</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#IO-Loop"><span class="nav-number">3.0.4.</span> <span class="nav-text">IO Loop</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#PUB协议格式"><span class="nav-number">3.0.5.</span> <span class="nav-text">PUB协议格式</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#Producer-Pub指令处理"><span class="nav-number">3.0.6.</span> <span class="nav-text">Producer Pub指令处理</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#Topic消息投递"><span class="nav-number">3.0.7.</span> <span class="nav-text">Topic消息投递</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#获取Topic"><span class="nav-number">3.0.8.</span> <span class="nav-text">获取Topic</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#新建Topic"><span class="nav-number">3.0.9.</span> <span class="nav-text">新建Topic</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#Topic事件循环"><span class="nav-number">3.0.10.</span> <span class="nav-text">Topic事件循环</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#Channel消息投递"><span class="nav-number">3.0.11.</span> <span class="nav-text">Channel消息投递</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#PUB流程结束，向Consumer投递流程分析"><span class="nav-number">3.0.12.</span> <span class="nav-text">PUB流程结束，向Consumer投递流程分析</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#消息存入优先队列，保证消息至少消费一次"><span class="nav-number">3.0.13.</span> <span class="nav-text">消息存入优先队列，保证消息至少消费一次</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#优先队列图示"><span class="nav-number">3.0.14.</span> <span class="nav-text">优先队列图示</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#客户端确认消息"><span class="nav-number">3.0.15.</span> <span class="nav-text">客户端确认消息</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#扫描优先队列"><span class="nav-number">3.0.16.</span> <span class="nav-text">扫描优先队列</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#从优先队列移除消息"><span class="nav-number">3.0.17.</span> <span class="nav-text">从优先队列移除消息</span></a></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#四、NSQ总结"><span class="nav-number">4.</span> <span class="nav-text">四、NSQ总结</span></a></li></ol></div>
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#序"><span class="nav-number">1.</span> <span class="nav-text">序</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#一、NSQ组件"><span class="nav-number">2.</span> <span class="nav-text">一、NSQ组件</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#二、NSQD构成"><span class="nav-number">3.</span> <span class="nav-text">二、NSQD构成</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#三、源码分析"><span class="nav-number">4.</span> <span class="nav-text">三、源码分析</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#NSQD入口"><span class="nav-number">4.0.1.</span> <span class="nav-text">NSQD入口</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#Tcp-Server"><span class="nav-number">4.0.2.</span> <span class="nav-text">Tcp Server</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#Tcp-Connect-Handle"><span class="nav-number">4.0.3.</span> <span class="nav-text">Tcp Connect Handle</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#IO-Loop"><span class="nav-number">4.0.4.</span> <span class="nav-text">IO Loop</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#PUB协议格式"><span class="nav-number">4.0.5.</span> <span class="nav-text">PUB协议格式</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#Producer-Pub指令处理"><span class="nav-number">4.0.6.</span> <span class="nav-text">Producer Pub指令处理</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#Topic消息投递"><span class="nav-number">4.0.7.</span> <span class="nav-text">Topic消息投递</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#获取Topic"><span class="nav-number">4.0.8.</span> <span class="nav-text">获取Topic</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#新建Topic"><span class="nav-number">4.0.9.</span> <span class="nav-text">新建Topic</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#Topic事件循环"><span class="nav-number">4.0.10.</span> <span class="nav-text">Topic事件循环</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#Channel消息投递"><span class="nav-number">4.0.11.</span> <span class="nav-text">Channel消息投递</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#PUB流程结束，向Consumer投递流程分析"><span class="nav-number">4.0.12.</span> <span class="nav-text">PUB流程结束，向Consumer投递流程分析</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#消息存入优先队列，保证消息至少消费一次"><span class="nav-number">4.0.13.</span> <span class="nav-text">消息存入优先队列，保证消息至少消费一次</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#优先队列图示"><span class="nav-number">4.0.14.</span> <span class="nav-text">优先队列图示</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#客户端确认消息"><span class="nav-number">4.0.15.</span> <span class="nav-text">客户端确认消息</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#扫描优先队列"><span class="nav-number">4.0.16.</span> <span class="nav-text">扫描优先队列</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#从优先队列移除消息"><span class="nav-number">4.0.17.</span> <span class="nav-text">从优先队列移除消息</span></a></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#四、NSQ总结"><span class="nav-number">5.</span> <span class="nav-text">四、NSQ总结</span></a></li></ol></div>
       </div>
       <!--/noindex-->
 
       <div class="site-overview-wrap sidebar-panel">
         <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
-  <p class="site-author-name" itemprop="name">吃西瓜不吐籽</p>
+  <p class="site-author-name" itemprop="name">冯建斌</p>
   <div class="site-description" itemprop="description"></div>
 </div>
 <div class="site-state-wrap motion-element">
   <nav class="site-state">
       <div class="site-state-item site-state-posts">
           <a href="/archives">
-          <span class="site-state-item-count">4</span>
+          <span class="site-state-item-count">5</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">3</span>
+        <span class="site-state-item-count">4</span>
         <span class="site-state-item-name">分类</span></a>
       </div>
   </nav>
 </div>
-  <div class="links-of-author motion-element">
-      <span class="links-of-author-item">
-        <a href="https://www.zhihu.com/people/shan-hou-bie-xiang-feng-13" title="Zhihu → https:&#x2F;&#x2F;www.zhihu.com&#x2F;people&#x2F;shan-hou-bie-xiang-feng-13" rel="noopener" target="_blank"><i class="fab fa-zhihu fa-fw"></i>Zhihu</a>
-      </span>
-  </div>
 
 
 
@@ -485,7 +481,7 @@
   <span class="with-love">
     <i class="fa file-code"></i>
   </span>
-  <span class="author" itemprop="copyrightHolder">吃西瓜不吐籽</span>
+  <span class="author" itemprop="copyrightHolder">冯建斌</span>
 </div>
 
         
